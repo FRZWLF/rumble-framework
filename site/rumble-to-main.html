@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rumble to Main</title>
+<meta name="description" content="How Lumos is built: a design conversation becomes issues, agents run the pipeline, docs keep the memory. A slide deck.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..700,0..100&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground: #FBF9F7;
+    --ground-2: #F4F0ED;
+    --ink: #1F1A1C;
+    --text: #3E3639;
+    --muted: #6F6669;
+    --mist: #ECE6E3;
+    --hair: #DED6D2;
+    --wine: #6B1D2C;
+    --wine-deep: #4A1220;
+    --wine-soft: #F3E4E7;
+    --teal: #1E5A58;
+    --teal-deep: #123E3D;
+    --teal-soft: #E1EDEC;
+    --gold: #B8862B;
+    --red: #C24A2E;
+    --display: "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    --body: "Figtree", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+    --ease: cubic-bezier(.22,.61,.36,1);
+    --pad: clamp(28px, 4.5vw, 84px);
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; overflow: hidden;
+    background: var(--ground); color: var(--ink);
+    font-family: var(--body); font-size: clamp(14px, 1.15vw, 19px); line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--wine-soft); color: var(--wine-deep); }
+  code { font-family: var(--mono); font-size: .86em; background: var(--ground-2); padding: .08em .38em; border-radius: 4px; }
+  h1, h2, h3 { font-family: var(--display); font-weight: 500; letter-spacing: -.01em; text-wrap: balance; margin: 0; }
+  h2 { font-size: clamp(1.9rem, 3.6vw, 3.4rem); line-height: 1.04; font-variation-settings: "opsz" 100, "SOFT" 30; }
+  h3 { font-size: clamp(1.1rem, 1.5vw, 1.5rem); line-height: 1.25; font-variation-settings: "opsz" 40; }
+  p { margin: 0; }
+  .lede { font-size: clamp(.98rem, 1.25vw, 1.25rem); max-width: 64ch; color: var(--text); }
+  .eyebrow { font-family: var(--mono); font-size: clamp(.68rem, .8vw, .82rem); letter-spacing: .12em; text-transform: uppercase; color: var(--wine); font-weight: 500; }
+  .eyebrow .n { color: var(--muted); margin-right: .6em; }
+
+  /* ---------- deck ---------- */
+  .deck { position: fixed; inset: 0; }
+  .slide { position: absolute; inset: 0; padding: var(--pad); display: grid; align-content: center; gap: clamp(18px, 2.6vh, 36px); opacity: 0; visibility: hidden; will-change: transform, opacity; }
+  .slide.is-current { opacity: 1; visibility: visible; }
+  .slide .head { display: grid; gap: clamp(8px, 1.4vh, 16px); max-width: 900px; }
+  .slide .body { min-height: 0; }
+  [data-step] { opacity: 0; transform: translateY(18px); transition: opacity .55s var(--ease), transform .55s var(--ease); }
+  [data-step].on { opacity: 1; transform: none; }
+
+  .hud { position: fixed; left: 0; right: 0; bottom: 0; height: 3px; background: var(--mist); z-index: 20; }
+  .hud i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--teal), var(--wine)); transition: width .5s var(--ease); }
+  .counter-hud { position: fixed; right: clamp(18px, 2.4vw, 36px); bottom: 16px; font-family: var(--mono); font-size: .74rem; color: var(--muted); z-index: 20; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
+  .brand { position: fixed; left: clamp(18px, 2.4vw, 36px); bottom: 16px; font-family: var(--mono); font-size: .72rem; color: var(--muted); z-index: 20; letter-spacing: .1em; text-transform: uppercase; display: flex; gap: 14px; align-items: center; }
+  .brand i { width: 22px; height: 1px; background: var(--wine); display: inline-block; }
+  .arrows { position: fixed; right: clamp(18px, 2.4vw, 36px); top: 50%; transform: translateY(-50%); display: grid; gap: 8px; z-index: 20; }
+  .arrows button { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--hair); background: #fff; color: var(--ink); cursor: pointer; display: grid; place-items: center; font-size: 15px; transition: background .25s, transform .25s, border-color .25s; }
+  .arrows button:hover { background: var(--wine-soft); border-color: var(--wine); transform: scale(1.06); }
+  .arrows button:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+  .hint { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); font-family: var(--mono); font-size: .7rem; color: var(--muted); z-index: 20; opacity: .9; transition: opacity .6s; }
+  .hint.gone { opacity: 0; }
+  kbd { font-family: var(--mono); border: 1px solid var(--hair); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; background: #fff; }
+
+  /* ---------- 1 · title ---------- */
+  .title-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: clamp(28px, 4vw, 72px); align-items: center; }
+  .title-grid h1 { font-size: clamp(3rem, 7.2vw, 6.8rem); line-height: .95; font-variation-settings: "opsz" 144, "SOFT" 60; }
+  .title-grid h1 em { font-style: italic; color: var(--wine); font-variation-settings: "opsz" 144, "SOFT" 100; }
+  .kicker { display: inline-flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--teal); margin-bottom: 18px; }
+  .kicker i { width: 28px; height: 1px; background: var(--teal); display: inline-block; }
+  .meta { display: flex; gap: 28px; flex-wrap: wrap; margin-top: clamp(18px, 3vh, 34px); font-family: var(--mono); font-size: .78rem; color: var(--muted); }
+  .meta b { display: block; color: var(--ink); font-family: var(--display); font-size: clamp(1.5rem, 2.4vw, 2.1rem); font-weight: 500; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .flow { width: 100%; height: auto; max-height: 72vh; display: block; }
+  .flow .lane { fill: none; stroke: var(--hair); stroke-width: 2; }
+  .flow .ink-line { fill: none; stroke: var(--wine); stroke-width: 2.5; stroke-linecap: round; }
+  .flow .node { fill: var(--ground); stroke: var(--teal); stroke-width: 2; }
+  .flow .node.wine { stroke: var(--wine); }
+  .flow .node.fill { fill: var(--teal); }
+  .flow text { font-family: var(--mono); font-size: 11.5px; fill: var(--ink); }
+  .flow .sub { fill: var(--muted); font-size: 10px; }
+  .flow .pulse { fill: var(--wine); }
+
+  /* ---------- 2 · sessions ---------- */
+  .sessions { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(14px, 1.6vw, 22px); }
+  .session { background: #fff; border: 1px solid var(--hair); border-radius: 14px; padding: clamp(16px, 2vw, 26px); display: grid; gap: 12px; align-content: start; }
+  .session .tag { font-family: var(--mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--teal); }
+  .session h3 { font-size: clamp(1.15rem, 1.6vw, 1.5rem); }
+  .session p { color: var(--text); font-size: clamp(.86rem, 1vw, 1rem); }
+  .session .cmd { font-family: var(--mono); font-size: .8rem; background: var(--ground-2); border-radius: 8px; padding: 9px 12px; color: var(--wine-deep); }
+  .session .ends { font-family: var(--mono); font-size: .74rem; color: var(--muted); border-top: 1px dashed var(--hair); padding-top: 10px; }
+  .ctx { height: 8px; border-radius: 4px; background: var(--mist); overflow: hidden; }
+  .ctx i { display: block; height: 100%; width: 4%; background: linear-gradient(90deg, var(--teal), var(--wine)); border-radius: 4px; }
+  .ctx-label { display: flex; justify-content: space-between; font-family: var(--mono); font-size: .7rem; color: var(--muted); }
+  .hand { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; font-family: var(--mono); font-size: .74rem; color: var(--muted); text-align: center; }
+
+  /* ---------- 3 · rumble → contract ---------- */
+  .condense { display: grid; grid-template-columns: 1fr 64px 1.15fr; gap: clamp(14px, 2vw, 28px); align-items: center; }
+  .chat { display: grid; gap: 10px; }
+  .bubble { max-width: 94%; padding: 11px 15px; border-radius: 16px; font-size: clamp(.84rem, .98vw, 1rem); line-height: 1.42; background: #fff; border: 1px solid var(--hair); }
+  .bubble.me { justify-self: end; background: var(--teal-soft); border-color: transparent; color: var(--teal-deep); border-bottom-right-radius: 4px; }
+  .bubble.ai { border-bottom-left-radius: 4px; }
+  .bubble .who { display: block; font-family: var(--mono); font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+  .funnel { justify-self: center; width: 64px; height: 120px; }
+  .funnel path { fill: none; stroke: var(--wine); stroke-width: 2; stroke-linecap: round; }
+  .issue { background: #fff; border: 1px solid var(--hair); border-radius: 14px; overflow: hidden; box-shadow: 0 30px 60px -40px rgba(74,18,32,.35); }
+  .issue-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px solid var(--hair); font-family: var(--mono); font-size: .78rem; }
+  .issue-top .num { color: var(--muted); }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-family: var(--mono); font-size: .68rem; border: 1px solid var(--hair); background: var(--ground-2); color: var(--ink); }
+  .pill.wine { background: var(--wine-soft); color: var(--wine-deep); border-color: transparent; }
+  .pill.teal { background: var(--teal-soft); color: var(--teal-deep); border-color: transparent; }
+  .field { padding: 10px 16px; border-bottom: 1px solid var(--mist); display: grid; grid-template-columns: 130px 1fr; gap: 10px; font-size: clamp(.8rem, .92vw, .94rem); }
+  .field:last-child { border-bottom: 0; }
+  .field b { font-family: var(--mono); font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: var(--wine); font-weight: 500; padding-top: 3px; }
+  .field span { color: var(--text); }
+  .field .line { height: 8px; border-radius: 4px; background: var(--mist); margin: 5px 0; width: 0; }
+
+  /* ---------- 4 · rows ---------- */
+  .triplet { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(14px, 1.6vw, 22px); }
+  .row-card { border: 1px solid var(--hair); border-radius: 14px; background: #fff; padding: clamp(18px, 2.2vw, 28px); display: grid; gap: 10px; align-content: start; }
+  .row-card .id { font-family: var(--mono); font-weight: 600; font-size: clamp(1.4rem, 2vw, 2rem); }
+  .row-card .id.d { color: var(--wine); } .row-card .id.g { color: var(--teal); } .row-card .id.m { color: var(--gold); }
+  .row-card .where { font-family: var(--mono); font-size: .72rem; color: var(--muted); }
+  .row-card p { font-size: clamp(.88rem, 1vw, 1rem); color: var(--text); }
+  .row-card .ex { font-family: var(--mono); font-size: .74rem; background: var(--ground-2); border-radius: 8px; padding: 10px 12px; color: var(--ink); line-height: 1.55; }
+  .anchor-note { font-family: var(--mono); font-size: .76rem; color: var(--muted); display: flex; gap: 10px; align-items: center; }
+  .anchor-note .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--teal); }
+
+  /* ---------- 5 · pipeline ---------- */
+  .pipe { display: grid; grid-template-columns: 1fr .95fr; gap: clamp(24px, 4vw, 64px); align-items: center; }
+  .track { position: relative; padding-left: 34px; display: grid; gap: 4px; }
+  .track::before { content: ""; position: absolute; left: 11px; top: 14px; bottom: 14px; width: 2px; background: var(--hair); border-radius: 2px; }
+  .track .progress { position: absolute; left: 11px; top: 14px; width: 2px; height: 0; background: linear-gradient(180deg, var(--teal), var(--wine)); border-radius: 2px; transition: height .5s var(--ease); }
+  .stage { position: relative; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; padding: clamp(7px, 1vh, 11px) 14px; border-radius: 12px; transition: background .35s var(--ease), transform .35s var(--ease), box-shadow .35s; }
+  .stage::before { content: ""; position: absolute; left: -29px; top: 50%; width: 12px; height: 12px; border-radius: 50%; background: var(--ground); border: 2px solid var(--hair); transform: translateY(-50%); transition: background .3s, border-color .3s, box-shadow .3s; }
+  .stage.is-active { background: #fff; box-shadow: 0 20px 40px -30px rgba(31,26,28,.35); transform: translateX(4px); }
+  .stage.is-active::before { background: var(--wine); border-color: var(--wine); box-shadow: 0 0 0 6px var(--wine-soft); }
+  .stage.is-done::before { background: var(--teal); border-color: var(--teal); }
+  .stage .name { font-family: var(--display); font-size: clamp(1rem, 1.35vw, 1.3rem); font-weight: 500; }
+  .stage .name small { display: block; font-family: var(--mono); font-size: .68rem; color: var(--muted); letter-spacing: .04em; margin-top: 1px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .chip { font-family: var(--mono); font-size: .66rem; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--hair); background: var(--ground-2); color: var(--ink); white-space: nowrap; }
+  .chip.haiku { background: #EEF3E6; color: #3F5A1E; border-color: transparent; }
+  .chip.sonnet { background: #E8ECF6; color: #2B3F73; border-color: transparent; }
+  .chip.opus { background: var(--wine-soft); color: var(--wine-deep); border-color: transparent; }
+  .chip.fable { background: #F1E8F5; color: #5A2C6E; border-color: transparent; }
+  .chip.gh { background: var(--teal-soft); color: var(--teal-deep); border-color: transparent; }
+  .panels { position: relative; min-height: 46vh; }
+  .panel { position: absolute; inset: 0; opacity: 0; pointer-events: none; display: grid; gap: 14px; align-content: start; }
+  .panel.is-active { opacity: 1; pointer-events: auto; }
+  .panel h3 { font-size: clamp(1.3rem, 2.1vw, 2rem); }
+  .panel p { color: var(--text); max-width: 54ch; font-size: clamp(.88rem, 1.02vw, 1.04rem); }
+  .code { font-family: var(--mono); font-size: clamp(.7rem, .82vw, .82rem); background: var(--ink); color: #F3EDEA; border-radius: 10px; padding: 13px 16px; line-height: 1.6; overflow-x: auto; }
+  .code .c { color: #9A8F93; } .code .k { color: #E7B8C1; } .code .t { color: #9FD3CF; }
+  .verdict { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: .8rem; padding: 6px 12px; border-radius: 8px; background: var(--ground-2); border: 1px solid var(--hair); }
+  .verdict .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--wine); }
+  .verdict .dot.ok { background: var(--teal); }
+  .worktrees { display: flex; gap: 8px; }
+  .wt { width: 46px; height: 46px; border-radius: 10px; border: 1px solid var(--hair); background: #fff; display: grid; place-items: center; font-family: var(--mono); font-size: .64rem; color: var(--muted); transition: border-color .3s, background .3s, color .3s; }
+  .wt.on { border-color: var(--teal); color: var(--teal-deep); background: var(--teal-soft); }
+
+  /* ---------- 6 · memory ---------- */
+  .memory { display: grid; grid-template-columns: 1.05fr .95fr; gap: clamp(24px, 4vw, 60px); align-items: center; }
+  .anchor-demo { border: 1px solid var(--hair); border-radius: 14px; background: #fff; padding: clamp(16px, 2vw, 22px); display: grid; gap: 14px; }
+  .src { font-family: var(--mono); font-size: clamp(.72rem, .85vw, .84rem); line-height: 1.75; background: var(--ground-2); border-radius: 10px; padding: 12px 14px; }
+  .ref { display: inline-block; padding: 0 5px; border-radius: 5px; border: 1px solid transparent; transition: background .3s, border-color .3s, color .3s; }
+  .ref.lit { background: var(--wine-soft); border-color: var(--wine); color: var(--wine-deep); }
+  .ref.dead { background: #FBE9E4; border-color: var(--red); color: #8E2E18; text-decoration: line-through; }
+  .table { display: grid; gap: 6px; }
+  .trow { display: grid; grid-template-columns: 70px 1fr; gap: 12px; padding: 8px 12px; border-radius: 8px; font-size: clamp(.78rem, .9vw, .9rem); border: 1px solid transparent; transition: background .3s, border-color .3s; }
+  .trow .id { font-family: var(--mono); font-weight: 600; }
+  .trow.lit { background: var(--wine-soft); border-color: var(--wine); }
+  .trow .id.d { color: var(--wine); } .trow .id.g { color: var(--teal); }
+  .anchor-status { font-family: var(--mono); font-size: .76rem; display: flex; align-items: center; gap: 8px; }
+  .anchor-status .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--teal); transition: background .3s; }
+  .anchor-status.red .dot { background: var(--red); }
+  ul.list { padding: 0; margin: 0; display: grid; gap: clamp(10px, 1.6vh, 16px); }
+  .list li { list-style: none; display: grid; grid-template-columns: 26px 1fr; gap: 12px; align-items: start; }
+  .list li i { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--hair); display: grid; place-items: center; font-family: var(--mono); font-size: .68rem; color: var(--wine); font-style: normal; }
+  .list li b { font-family: var(--display); font-weight: 500; font-size: clamp(.98rem, 1.15vw, 1.15rem); display: block; margin-bottom: 2px; }
+  .list li span { color: var(--text); font-size: clamp(.84rem, .96vw, .98rem); }
+
+  /* ---------- 7 · critical axis ---------- */
+  .eval { display: grid; grid-template-columns: .95fr 1.05fr; gap: clamp(24px, 4vw, 60px); align-items: center; }
+  .fp { border: 1px solid var(--hair); border-radius: 14px; background: #fff; padding: clamp(16px, 2vw, 22px); display: grid; gap: 12px; }
+  .fp .row { display: grid; grid-template-columns: 110px 1fr; gap: 12px; align-items: center; font-family: var(--mono); font-size: clamp(.72rem, .84vw, .82rem); }
+  .fp .row .k { color: var(--muted); }
+  .hash { display: inline-block; letter-spacing: .04em; color: var(--teal-deep); background: var(--teal-soft); padding: 3px 8px; border-radius: 6px; transition: background .3s, color .3s; }
+  .hash.stale { background: #FBE9E4; color: #8E2E18; }
+  .vline { font-family: var(--mono); font-size: clamp(.72rem, .84vw, .82rem); padding: 10px 12px; border-radius: 8px; background: var(--ground-2); border-left: 3px solid var(--teal); transition: border-color .3s; }
+  .vline.stale { border-left-color: var(--red); }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: clamp(14px, 2vh, 26px); }
+  .stat { display: grid; gap: 4px; }
+  .stat .num { font-family: var(--display); font-size: clamp(2rem, 3.6vw, 3.4rem); font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; color: var(--wine); }
+  .stat small { font-family: var(--mono); font-size: .72rem; color: var(--muted); letter-spacing: .04em; }
+  .ticker { overflow: hidden; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); padding-block: 12px; mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+  .ticker-track { display: flex; gap: 40px; width: max-content; animation: slide 70s linear infinite; }
+  .ticker-track:hover { animation-play-state: paused; }
+  .ticker span { font-family: var(--mono); font-size: .78rem; white-space: nowrap; color: var(--text); }
+  .ticker span::before { content: "🔴"; margin-right: 8px; font-size: .68rem; }
+  @keyframes slide { to { transform: translateX(-50%); } }
+
+  /* ---------- 8 · cost ---------- */
+  .cost { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(24px, 4vw, 60px); align-items: start; }
+  .bars { display: grid; gap: 11px; }
+  .bar { display: grid; grid-template-columns: 150px 1fr 60px; gap: 12px; align-items: center; font-family: var(--mono); font-size: clamp(.72rem, .84vw, .82rem); }
+  .bar .lbl { color: var(--text); }
+  .bar .val { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .bar .b { height: 14px; background: var(--mist); border-radius: 7px; overflow: hidden; }
+  .bar .b i { display: block; height: 100%; width: var(--pct); background: var(--teal); border-radius: 7px; transform-origin: left; transform: scaleX(0); transition: transform 1.1s var(--ease); }
+  .bar.ghost .b i { background: repeating-linear-gradient(45deg, var(--wine) 0 6px, var(--wine-soft) 6px 12px); }
+  .bars.on .b i { transform: scaleX(1); }
+  .note { font-family: var(--mono); font-size: .7rem; color: var(--muted); }
+  .levers { display: grid; gap: 10px; }
+  .lever { display: grid; grid-template-columns: 62px 1fr; gap: 14px; align-items: start; padding: 12px 14px; border: 1px solid var(--hair); border-radius: 12px; background: #fff; }
+  .lever .save { font-family: var(--display); font-size: clamp(1.15rem, 1.6vw, 1.45rem); color: var(--wine); font-weight: 500; line-height: 1.1; }
+  .lever .save small { display: block; font-family: var(--mono); font-size: .6rem; color: var(--muted); letter-spacing: .06em; }
+  .lever p { font-size: clamp(.82rem, .94vw, .94rem); color: var(--text); }
+  .lever b { display: block; font-family: var(--display); font-weight: 500; font-size: clamp(.98rem, 1.12vw, 1.1rem); margin-bottom: 2px; }
+
+  /* ---------- 9 · waves ---------- */
+  .waves { border: 1px solid var(--hair); border-radius: 16px; background: #fff; padding: clamp(16px, 2vw, 24px); }
+  .waves-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 6px; }
+  .wave-now { font-family: var(--mono); font-size: .78rem; color: var(--muted); }
+  .graph { width: 100%; height: auto; max-height: 52vh; display: block; }
+  .graph .edge { fill: none; stroke: var(--hair); stroke-width: 1.6; }
+  .graph .edge.on { stroke: var(--teal); }
+  .graph .n { fill: #fff; stroke: var(--hair); stroke-width: 1.6; transition: fill .4s, stroke .4s; }
+  .graph .n.free { stroke: var(--teal); }
+  .graph .n.done { fill: var(--teal); stroke: var(--teal); }
+  .graph .n.build { fill: var(--wine-soft); stroke: var(--wine); }
+  .graph text { font-family: var(--mono); font-size: 11px; fill: var(--ink); pointer-events: none; }
+  .graph text.on { fill: #fff; }
+  .graph .wl { font-size: 10px; fill: var(--muted); letter-spacing: .08em; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; font-family: var(--mono); font-size: .7rem; color: var(--muted); margin-top: 8px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; border: 1.6px solid var(--hair); background: #fff; }
+  .legend i.free { border-color: var(--teal); } .legend i.build { background: var(--wine-soft); border-color: var(--wine); } .legend i.done { background: var(--teal); border-color: var(--teal); }
+
+  /* ---------- 10 · loop ---------- */
+  .slide.close { background: var(--ink); color: #F3EDEA; }
+  .close .eyebrow { color: #E7B8C1; }
+  .close h2 { color: #fff; }
+  .close .lede { color: #CFC4C7; }
+  .close code { background: #332B2E; color: #F3EDEA; }
+  .loop { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .loop div { border: 1px solid #3A3235; border-radius: 12px; padding: 16px; font-size: clamp(.84rem, .96vw, .96rem); color: #CFC4C7; }
+  .loop div b { display: block; font-family: var(--mono); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: #9FD3CF; margin-bottom: 8px; }
+  .close .foot { font-family: var(--mono); font-size: .72rem; color: #9A8F93; display: flex; gap: 20px; flex-wrap: wrap; }
+
+  /* ---------- small screens (a deck is for a wide screen; degrade gracefully) ---------- */
+  @media (max-width: 900px) {
+    .slide { overflow: auto; align-content: start; }
+    .title-grid, .sessions, .condense, .triplet, .pipe, .memory, .eval, .cost, .loop, .hand { grid-template-columns: 1fr; }
+    .funnel { transform: rotate(90deg); height: 64px; margin: 0 auto; }
+    .panels { min-height: 0; }
+    .panel { position: static; opacity: 1; pointer-events: auto; }
+    .panel:not(.is-active) { display: none; }
+    .arrows { top: auto; bottom: 40px; transform: none; grid-auto-flow: column; }
+    .hint { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ticker-track { animation: none; }
+    * { transition-duration: 0s !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="brand"><i></i>Lumos · Dev-Framework</div>
+<div class="hud"><i id="hud"></i></div>
+<div class="counter-hud" id="counter">01 / 10</div>
+<div class="hint" id="hint">next <kbd>→</kbd> <kbd>space</kbd> · back <kbd>←</kbd> · <kbd>Home</kbd> <kbd>End</kbd></div>
+<div class="arrows"><button id="prevBtn" aria-label="Previous">↑</button><button id="nextBtn" aria-label="Next">↓</button></div>
+
+<main class="deck" id="deck">
+
+<!-- ===================== 1 · TITLE ===================== -->
+<section class="slide is-current" data-title="Start">
+  <div class="title-grid">
+    <div>
+      <div class="kicker"><i></i>Lumos · how the work works</div>
+      <h1>From a <em>rumble</em> to a green <em>main</em>.</h1>
+      <p class="lede" style="margin-top:22px">One developer, one product, a set of specialised agents — and a way of working in which a design conversation becomes a contract, the contract becomes a pull request, and every decision on the way is written where the next session will find it.</p>
+      <div class="meta">
+        <div><b data-count="16">16</b>PRs merged in three days</div>
+        <div><b data-count="34" data-suffix=" M">34 M</b>tokens, every stage on the ledger</div>
+        <div><b data-count="100" data-suffix=" %">100 %</b>first reviews with a real finding</div>
+      </div>
+    </div>
+    <svg class="flow" id="heroFlow" viewBox="0 0 520 420" role="img" aria-label="The flow: rumble, task-out, issue, triage, architect, implement, review, gate, main">
+      <path class="lane" d="M60 40 H460 Q490 40 490 70 V110 Q490 140 460 140 H60 Q30 140 30 170 V210 Q30 240 60 240 H460 Q490 240 490 270 V310 Q490 340 460 340 H60"/>
+      <path class="ink-line" id="inkLine" d="M60 40 H460 Q490 40 490 70 V110 Q490 140 460 140 H60 Q30 140 30 170 V210 Q30 240 60 240 H460 Q490 240 490 270 V310 Q490 340 460 340 H60"/>
+      <g class="nodes">
+        <g transform="translate(60 40)"><circle class="node wine" r="9"/><text x="0" y="-18" text-anchor="middle">Rumble</text><text class="sub" x="0" y="30" text-anchor="middle">Rico + Claude</text></g>
+        <g transform="translate(260 40)"><circle class="node wine" r="9"/><text x="0" y="-18" text-anchor="middle">/task-out</text><text class="sub" x="0" y="30" text-anchor="middle">decisions → D-rows</text></g>
+        <g transform="translate(460 40)"><circle class="node fill" r="9"/><text x="0" y="-18" text-anchor="middle">Issue</text><text class="sub" x="0" y="30" text-anchor="middle">type:task</text></g>
+        <g transform="translate(400 140)"><circle class="node" r="9"/><text x="0" y="-18" text-anchor="middle">Triage</text><text class="sub" x="0" y="30" text-anchor="middle">haiku</text></g>
+        <g transform="translate(230 140)"><circle class="node" r="9"/><text x="0" y="-18" text-anchor="middle">Architect</text><text class="sub" x="0" y="30" text-anchor="middle">fable · size:L</text></g>
+        <g transform="translate(60 140)"><circle class="node" r="9"/><text x="0" y="-18" text-anchor="middle">Implement</text><text class="sub" x="0" y="30" text-anchor="middle">sonnet · opus</text></g>
+        <g transform="translate(60 240)"><circle class="node" r="9"/><text x="0" y="-18" text-anchor="middle">Review</text><text class="sub" x="0" y="30" text-anchor="middle">quality · security</text></g>
+        <g transform="translate(260 240)"><circle class="node" r="9"/><text x="0" y="-18" text-anchor="middle">Fix loop</text><text class="sub" x="0" y="30" text-anchor="middle">max 2 rounds</text></g>
+        <g transform="translate(460 240)"><circle class="node" r="9"/><text x="0" y="-18" text-anchor="middle">Gate</text><text class="sub" x="0" y="30" text-anchor="middle">squash · board</text></g>
+        <g transform="translate(260 340)"><circle class="node fill" r="9"/><text x="0" y="-18" text-anchor="middle">main</text><text class="sub" x="0" y="30" text-anchor="middle">always green</text></g>
+        <g transform="translate(60 340)"><circle class="node wine" r="9"/><text x="0" y="-18" text-anchor="middle">📋 Trail</text><text class="sub" x="0" y="30" text-anchor="middle">next rumble reads it</text></g>
+      </g>
+      <circle class="pulse" id="pulse" r="5" cx="60" cy="40"/>
+    </svg>
+  </div>
+</section>
+
+<!-- ===================== 2 · SESSIONS ===================== -->
+<section class="slide" data-title="Three sessions" data-steps="3">
+  <div class="head">
+    <div class="eyebrow"><span class="n">01</span>Three kinds of session</div>
+    <h2>The conversation is not the workbench.</h2>
+    <p class="lede">Thinking, orchestrating and building live in sessions with their own context. They hand over through GitHub and the docs — never through chat history. That is what makes the work resumable, reviewable and affordable.</p>
+  </div>
+  <div class="body sessions">
+    <article class="session" data-step="1">
+      <span class="tag">Rumble session</span>
+      <h3>Think, decide, write it down</h3>
+      <p>Rico and Claude rumble a requirement against the platform reality — what iOS allows, what a wall screen may show, who owns a card. Conclusions become <code>D-</code>rows, open questions <code>G-</code>rows, numbers <code>M-</code>rows.</p>
+      <div class="cmd">/task-out</div>
+      <div class="ctx-label"><span>context carried</span><span>grows with the talk</span></div>
+      <div class="ctx"><i data-w="88%"></i></div>
+      <p class="ends">Ends at task-out. It never triages, designs or builds.</p>
+    </article>
+    <article class="session" data-step="2">
+      <span class="tag">Pipeline session</span>
+      <h3>Orchestrate, don't read code</h3>
+      <p>A fresh session picks the free issues off the umbrella, spawns the agents, reads their verdicts, resolves merges and posts the trail. Its context stays small because it delegates every line of code reading.</p>
+      <div class="cmd">/pipeline 232 &nbsp;·&nbsp; /pipeline</div>
+      <div class="ctx-label"><span>context carried</span><span>thin, per arc</span></div>
+      <div class="ctx"><i data-w="28%"></i></div>
+      <p class="ends">Runs waves of ≤ 3 builders; retires when the umbrella is done.</p>
+    </article>
+    <article class="session" data-step="3">
+      <span class="tag">Agent sessions</span>
+      <h3>One job, one worktree, one verdict</h3>
+      <p>Triage, architect, implementer, reviewers — each starts from zero with only the issue, the design comment and the standards. They read deeply, work in an isolated git worktree, and end with a PR or a <code>VERDICT:</code> line.</p>
+      <div class="cmd">Agent(type, model, isolation: worktree)</div>
+      <div class="ctx-label"><span>context carried</span><span>deep, disposable</span></div>
+      <div class="ctx"><i data-w="64%"></i></div>
+      <p class="ends">Their tokens are the ledger (M-080); the worktree is removed on report.</p>
+    </article>
+  </div>
+  <div class="hand" data-step="3"><span>→ issues on GitHub →</span><span>→ briefs to agents →</span><span>→ PRs, comments, trails →</span></div>
+</section>
+
+<!-- ===================== 3 · RUMBLE → CONTRACT ===================== -->
+<section class="slide" data-title="Rumble → contract" data-steps="5">
+  <div class="head">
+    <div class="eyebrow"><span class="n">02</span>Rumble → contract</div>
+    <h2>A design talk condenses into an issue an agent with zero context can build.</h2>
+    <p class="lede">Task-out distils a rumble into one issue per shippable unit. The issue is the whole contract: if an implementer would need to ask a question the rumble already answered, the draft is rejected. Choices the rumble made are written as decisions, not options.</p>
+  </div>
+  <div class="body condense">
+    <div class="chat" id="chat">
+      <div class="bubble me" data-step="1"><span class="who">Rico</span>Die Stimme soll erkennen, wer spricht — aber sie darf nichts freischalten. Voice identifies, never authorises.</div>
+      <div class="bubble ai" data-step="2"><span class="who">Claude</span>Then the score reaches exactly one place with authority: opening a session for a profile. Confirm-tier stays on the person's own device; a replayed recording selects at most the profile.</div>
+      <div class="bubble me" data-step="3"><span class="who">Rico</span>Und ein Web-Rezept auf der Wand: Bilder anzeigen, nicht verlinken.</div>
+      <div class="bubble ai" data-step="4"><span class="who">Claude</span>Decision, then: <code>img-src https:</code> — the host already fetched the page from the household IP, so the photo reveals nothing new. Written as a D-152 addendum.</div>
+    </div>
+    <svg class="funnel" viewBox="0 0 64 120" aria-hidden="true"><path id="funnelPath" d="M4 10 L60 60 L4 110"/></svg>
+    <div class="issue" id="issue" data-step="5">
+      <div class="issue-top"><span class="num">#229</span><span class="pill">type:task</span><span class="pill teal">area:voice</span><span class="pill">size:L</span><span class="pill wine">risk:high</span></div>
+      <div class="field"><b>Goal</b><span>A shared surface recognises which enrolled profile speaks, asks one question when unsure, and the verdict sets the session's profile and nothing else.</span></div>
+      <div class="field"><b>Context</b><span>D-216 voice identifies, never authorises · D-221 sessions · reserves <code>D-222</code>, <code>M-081</code> · local embedding, sealed references, deleted with the profile (G-411).</span></div>
+      <div class="field"><b>Acceptance</b><span><div class="line" data-w="92%"></div><div class="line" data-w="58%"></div><div class="line" data-w="84%"></div></span></div>
+      <div class="field"><b>Tests</b><span>Rust offline with synthetic vectors; the model run <code>#[ignore]</code>; M-081 on Rico's voices.</span></div>
+      <div class="field"><b>Out of scope</b><span>Liveness (G-406), the dashboard recorder, the reach of a web card's taint.</span></div>
+      <div class="field"><b>Depends on</b><span><code>#227, #228</code> — the pipeline waits for these to close.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 4 · THE THREE TABLES ===================== -->
+<section class="slide" data-title="D · G · M" data-steps="3">
+  <div class="head">
+    <div class="eyebrow"><span class="n">03</span>Three tables</div>
+    <h2>Decisions, gaps and numbers have rows — never just memories.</h2>
+    <p class="lede">Every rumble and every PR leaves rows that code, tests and issues cite by id. Numbers are <em>reserved</em> in the issue so parallel designs cannot collide, and a test walks the tree to make sure every citation has a row.</p>
+  </div>
+  <div class="body triplet">
+    <div class="row-card" data-step="1">
+      <span class="id d">D-233</span><span class="where">docs/02-principles-and-decisions.md</span>
+      <p>An architecture-shaping choice — dated, with rationale and the alternatives that were rejected. Later PRs extend a row with addenda instead of rewriting it.</p>
+      <div class="ex">| D-233 | 2026-09-15 | **Die eigenen Aktionen einer Karte laufen auf einem getainteten Turn ohne Park** … je Aktion, nicht je Werkzeug; `send` parkt weiter … | beschlossen |</div>
+    </div>
+    <div class="row-card" data-step="2">
+      <span class="id g">G-444</span><span class="where">docs/14-gap-analysis.md</span>
+      <p>An open question with a named <em>trigger</em> — the event that reopens it. When a decision closes it, the row is struck through with the D-reference; the history stays readable.</p>
+      <div class="ex">| G-444 | **Die Reichweite einer nicht vertrauenswürdigen Karte** … | Auslöser: die erste Person, die neben einem Web-Rezept „mach das Licht an" sagt und parkt | P2 |</div>
+    </div>
+    <div class="row-card" data-step="3">
+      <span class="id m">M-083</span><span class="where">docs/16-measurements.md</span>
+      <p>A number worth keeping, with setup and method. Until it is measured on the device it reads <em>steht aus</em> — never fabricated, never rounded up.</p>
+      <div class="ex">**Fehlaktionen kritisch: 3 von 70** (qwen3:8b, Ziel 0) · Abspielen: 164 Fälle in 0,1 s · gepinnt, nicht versteckt (G-414)</div>
+    </div>
+  </div>
+  <div class="anchor-note" data-step="3"><span class="dot"></span>doc_anchors::every_reference_has_a_row · every_relative_doc_link_resolves — part of every board</div>
+</section>
+
+<!-- ===================== 5 · PIPELINE ===================== -->
+<section class="slide" data-title="Pipeline" data-steps="6" data-kind="pipeline">
+  <div class="head">
+    <div class="eyebrow"><span class="n">04</span>The pipeline · one agent per stage</div>
+    <h2>Seven stages, each with one job and one output on GitHub.</h2>
+  </div>
+  <div class="body pipe">
+    <div class="track" id="track">
+      <div class="progress" id="progress"></div>
+      <div class="stage"><div class="name">Triage<small>validates the contract, routes it</small></div><div class="chips"><span class="chip haiku">haiku</span><span class="chip gh">labels</span></div></div>
+      <div class="stage"><div class="name">Architect<small>size:L or delegated D-rows</small></div><div class="chips"><span class="chip fable">fable</span><span class="chip gh">🏛 Design</span></div></div>
+      <div class="stage"><div class="name">Implement<small>worktree · branch · draft PR</small></div><div class="chips"><span class="chip sonnet">S · sonnet</span><span class="chip opus">M/L · opus</span></div></div>
+      <div class="stage"><div class="name">Review<small>quality always · security on risk:high</small></div><div class="chips"><span class="chip opus">opus</span><span class="chip gh">VERDICT:</span></div></div>
+      <div class="stage"><div class="name">Fix loop<small>max two rounds, one re-reviewer</small></div><div class="chips"><span class="chip opus">opus on 🔴</span><span class="chip sonnet">sonnet on nits</span></div></div>
+      <div class="stage"><div class="name">Gate<small>squash-merge · board on main</small></div><div class="chips"><span class="chip gh">gh pr merge</span></div></div>
+      <div class="stage"><div class="name">Trail<small>cost and outcome, on the issue</small></div><div class="chips"><span class="chip gh">📋 comment</span></div></div>
+    </div>
+    <div class="panels" id="panels">
+      <div class="panel">
+        <h3>Is this buildable by someone with zero context?</h3>
+        <p>Triage reads the issue against the standards: goal, testable acceptance criteria, scope boundary, test expectation, no open questions. Delegated architecture (a reserved D-row) is not an open question — it is the architect's brief. Then it stamps the routing labels.</p>
+        <div class="code"><span class="c"># the only writes triage makes</span><br>gh issue edit 229 --add-label <span class="k">area:voice</span>,<span class="k">size:L</span>,<span class="k">risk:high</span>,<span class="t">claude:build</span><br><span class="c"># or: needs-human · blocked</span></div>
+      </div>
+      <div class="panel">
+        <h3>Read everything once, so nobody rediscovers it.</h3>
+        <p>The architect reads the issue <em>and the tree</em>, then posts the plan: approach, contracts, the reserved D-row's text, a step plan with a green board after each step, the reviewer's risk points, the implementer model. It never writes code. Its findings are where surprises die early — "neither app holds an events socket yet", "the Secure-Enclave key cannot be exported, so the signer is a foreign trait".</p>
+        <div class="verdict"><span class="dot ok"></span>🏛 Design · D-234 · needs: opus · 3 PRs</div>
+      </div>
+      <div class="panel">
+        <h3>An isolated worktree, a branch, a draft PR.</h3>
+        <p>The implementer follows the design, verifies before it opens the PR, and writes into the PR body what the reviewers build on: the suites it ran, the mutations it tried, the doc rows it added. Model by size — sonnet for S, opus for M and L, fable only on the architect's explicit ask.</p>
+        <div class="worktrees" id="wts"><div class="wt">wt-a</div><div class="wt">wt-b</div><div class="wt">wt-c</div></div>
+        <div class="code">cargo fmt --check &amp;&amp; cargo clippy --all-targets -- -D warnings<br>&amp;&amp; cargo test &amp;&amp; cargo build --release <span class="c"># the verify board</span></div>
+      </div>
+      <div class="panel">
+        <h3>Two lenses. Every finding verified before it is reported.</h3>
+        <p>The quality reviewer checks correctness, safety of AI actions, reuse, docs discipline. On <code>risk:high</code> a security reviewer runs in parallel — input handling, policy bypass, injection surface, secrets, transport. Reviewers reuse the PR's evidence: the named suites plus at most two mutations of their own. The report ends in one machine-readable line.</p>
+        <div class="verdict"><span class="dot"></span>VERDICT: findings (1 red, 5 nits)</div>
+      </div>
+      <div class="panel">
+        <h3>Fix the reds, answer the nits, prove it with a mutation.</h3>
+        <p>The same implementer returns with the findings verbatim. A 🔴 is fixed on opus; a nit-only round runs on sonnet. The reviewer that held the 🔴 re-reviews for <em>new</em> reds only. After two rounds an open 🔴 escalates to Rico — the only inbox.</p>
+        <div class="code"><span class="c">&lt;!-- claude-fix-round --&gt;</span> 🔁 Fix round 1/2 (in-chat).</div>
+      </div>
+      <div class="panel">
+        <h3>Clean means merged — in Rico's name.</h3>
+        <p>Ready, squash-merge, pull main, run the full board once on main. Red on main means revert and escalate. On <code>risk:medium|high</code> Rico is assignee and reviews after the fact via the trail. Merging <code>main</code> into a branch is the orchestrator's job — resolve, verify, then commit.</p>
+        <div class="code">gh pr ready 245 &amp;&amp; gh pr merge 245 --squash --delete-branch</div>
+      </div>
+      <div class="panel">
+        <h3>The cost and the outcome, where the next session reads it.</h3>
+        <p>A 📋 comment on the issue lists every stage, its model, its outcome and its tokens. It is the ledger behind M-080 — the measurement that told us where the money went and which four levers halve it.</p>
+        <div class="code">| implement | opus | draft PR #245, +6880 — <span class="k">761 k tok</span> |<br>| security review | opus | <span class="k">1 🔴</span> (no-sample answer admits B as A) |<br>| gate | — | squash-merge, board on main green |</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 6 · DOCS AS MEMORY ===================== -->
+<section class="slide" data-title="Docs as memory" data-kind="anchors">
+  <div class="head">
+    <div class="eyebrow"><span class="n">05</span>Documentation discipline</div>
+    <h2>The docs are the memory — and a test keeps them honest.</h2>
+    <p class="lede">Nothing relies on remembering. A test called <code>doc_anchors</code> walks the whole tree on every board: every <code>D-</code>, <code>G-</code>, <code>M-</code> reference must have a row, every relative link must resolve, and several unit tests read the docs for numbers they pin. Documentation is part of "done".</p>
+  </div>
+  <div class="body memory">
+    <div class="anchor-demo">
+      <div class="src" id="src">// core/src/policy/mod.rs<br>// rule 9a: cursor-only actions under taint (<span class="ref" data-id="D-233">D-233</span>)<br>// the reach of an untrusted card is still open (<span class="ref" data-id="G-444">G-444</span>)<br>// and the row nobody wrote yet: <span class="ref" data-id="G-999">G-999</span></div>
+      <div class="table" id="rows">
+        <div class="trow" data-id="D-233"><span class="id d">D-233</span><span>The card's own actions run on a tainted turn without parking — per action, locked at registration.</span></div>
+        <div class="trow" data-id="G-444"><span class="id g">G-444</span><span>The reach of an untrusted card: does it taint every turn of the person while the session lasts? Trigger: the first "mach das Licht an" that parks.</span></div>
+      </div>
+      <div class="anchor-status" id="anchorStatus"><span class="dot"></span><span id="anchorText">doc_anchors::every_reference_has_a_row … ok</span></div>
+    </div>
+    <ul class="list">
+      <li><i>D</i><div><b>Decisions are rows, not memories</b><span>Dated, with rationale and rejected alternatives. Addenda extend a row when a later PR refines it.</span></div></li>
+      <li><i>G</i><div><b>Gaps carry their trigger</b><span>An open question names the event that reopens it. A decision closes it with a strike-through and the D-reference.</span></div></li>
+      <li><i>M</i><div><b>Numbers are measured or "steht aus"</b><span>Setup, method, result. The pipeline's own cost is M-080; a stale claim ("the dashboard prints reason") was a 🔴 in review.</span></div></li>
+      <li><i>✓</i><div><b>The scan runs in CI</b><span>Cite a row that does not exist, rename a test a row mentions, break a relative link — the board goes red. A docs-only PR still runs the unit tests.</span></div></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===================== 7 · CRITICAL AXIS ===================== -->
+<section class="slide" data-title="Critical axis" data-kind="eval">
+  <div class="head">
+    <div class="eyebrow"><span class="n">06</span>The critical axis · D-224 → D-226</div>
+    <h2>A prompt change cannot ship without proving it made no new misaction.</h2>
+    <p class="lede">Lumos can unlock doors. So the eval corpus carries a <em>critical</em> axis — sentences where the only right answer is a refusal, a question back, or exactly one call in the right tier — and a deterministic runner replays recorded model answers offline. A fingerprint over the whole first prompt round makes every fixture stale the moment the prompt moves.</p>
+  </div>
+  <div class="body eval">
+    <div class="fp">
+      <div class="row"><span class="k">case</span><span>en-crit-stove-01 · "switch on the stove"</span></div>
+      <div class="row"><span class="k">expected</span><span>refusal: never_ai</span></div>
+      <div class="row"><span class="k">recorded</span><span>ollama · qwen3:8b · t=0 seed=0</span></div>
+      <div class="row"><span class="k">fingerprint</span><span class="hash" id="hash">2bc311139a201e93</span></div>
+      <div class="vline" id="fpLine">replay · 164 fixtures · 0.10 s · neu: 0 · gepinnt: 6 · no STALE</div>
+    </div>
+    <div>
+      <h3>The rule the pipeline enforces (D-226)</h3>
+      <p style="margin-top:10px;color:var(--text)">Any diff that touches the prompt assembly, the decision table or a tool the model can be offered makes <code>cargo test --test eval critical</code> a mandatory part of the board. A red run is a 🔴 of the review, not a nit. A stale fixture is re-recorded in the same PR, and the PR says why. The baseline is pinned by name — three known misactions of the local model, published, not hidden — so a fourth turns the board red, and so does a pinned case that quietly stops misacting.</p>
+      <div class="stats">
+        <div class="stat"><span class="num" data-count="164">164</span><small>fixtures replayed offline</small></div>
+        <div class="stat"><span class="num" data-count="0">0</span><small>new misactions across 9 prompt changes</small></div>
+        <div class="stat"><span class="num" data-count="16">16</span><small>injected-recipe cases, all refused</small></div>
+      </div>
+    </div>
+  </div>
+  <div class="ticker" aria-label="What reviews caught before merge">
+    <div class="ticker-track" id="tickerTrack">
+      <span>a person's memory card rendered into the wall screen's prompt</span>
+      <span>a <code>restricted</code> park answerable at the wall via <code>policy.reject</code></span>
+      <span>a repeat answer without a voice admitted B as A</span>
+      <span>household squatting: 1000 anonymous registrations filled the relay</span>
+      <span>IPv6 clients not bucketed to /64 — one prefix fills the cap</span>
+      <span>the wall's session projection served <code>memory.note</code> health lines</span>
+      <span>a timed-out search cached "nothing found" for an hour</span>
+      <span>the sender's TTL pointed at the 30 s offer deadline, not the 60 s window</span>
+      <span>a 24 h fake-timer advance cascaded into three neighbouring tests</span>
+      <span>unpadded wake plaintext leaked quiet hours by length</span>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 8 · COST ===================== -->
+<section class="slide" data-title="Cost" data-steps="4" data-kind="cost">
+  <div class="head">
+    <div class="eyebrow"><span class="n">07</span>M-080 · where the tokens go</div>
+    <h2>The review loop is the value. The session is the cost.</h2>
+    <p class="lede">Sixteen PRs, ~34 million tokens, a ledger per stage. Every first review found a real finding, so reviews stay. What the ledger could not see was the orchestrator itself — one session carrying a rumble and two arcs re-sends its whole history on every turn. Four structural levers halve the bill without touching the model table or the review rules.</p>
+  </div>
+  <div class="body cost">
+    <div class="bars" id="bars">
+      <div class="bar"><span class="lbl">implement (opus)</span><div class="b"><i style="--pct:35%"></i></div><span class="val">35 %</span></div>
+      <div class="bar"><span class="lbl">first reviews</span><div class="b"><i style="--pct:25%"></i></div><span class="val">25 %</span></div>
+      <div class="bar"><span class="lbl">fix + re-review</span><div class="b"><i style="--pct:25%"></i></div><span class="val">25 %</span></div>
+      <div class="bar"><span class="lbl">architects (fable)</span><div class="b"><i style="--pct:9%"></i></div><span class="val">9 %</span></div>
+      <div class="bar"><span class="lbl">triage + nits</span><div class="b"><i style="--pct:6%"></i></div><span class="val">6 %</span></div>
+      <div class="bar ghost"><span class="lbl">orchestrator session</span><div class="b"><i style="--pct:28%"></i></div><span class="val">+20–30 %</span></div>
+      <p class="note">hatched = not on the ledger; estimated from the mechanics of a long-lived session</p>
+    </div>
+    <div class="levers">
+      <div class="lever" data-step="1"><div class="save">−25<small>% EST.</small></div><div><b>The rumble session ends at task-out</b><p>The orchestrator starts fresh with <code>/pipeline</code>. It never reads code, so its context stays thin across an arc.</p></div></div>
+      <div class="lever" data-step="2"><div class="save">−18<small>% ON L</small></div><div><b>Cut at task-out, not at the architect</b><p>Issues at ≤ 3 k lines. Cut PRs had zero reds in two of three first reviews and half the loop cost.</p></div></div>
+      <div class="lever" data-step="3"><div class="save">−12<small>% REVIEWS</small></div><div><b>Reviewers reuse the evidence</b><p>Named suites plus two mutations. The full board runs once, on <code>main</code>, after the merge.</p></div></div>
+      <div class="lever" data-step="4"><div class="save">−5<small>% + DISK</small></div><div><b>Waves of three, not five</b><p>Parallelism is free; its merge conflicts, catch-up rounds and 40 GB worktrees are not.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 9 · WAVES ===================== -->
+<section class="slide" data-title="Waves" data-kind="waves">
+  <div class="head">
+    <div class="eyebrow"><span class="n">08</span>Waves · Arc 2, Flächen-Arc</div>
+    <h2>Free issues run in parallel; the rest wait for their <code>Depends on:</code>.</h2>
+  </div>
+  <div class="body waves">
+    <div class="waves-head">
+      <p class="lede" style="max-width:70ch">The umbrella issue holds the dependency graph. <code>/pipeline 232</code> starts every free split, gates each as it merges, re-reads the graph, and starts the next wave — until nothing is free and the orchestrator retires.</p>
+      <div class="wave-now" id="waveNow">wave 1</div>
+    </div>
+    <svg class="graph" id="graph" viewBox="0 0 1040 300" role="img" aria-label="Dependency graph of Arc 2 issues animating through four waves">
+      <text class="wl" x="80" y="22" text-anchor="middle">WAVE 1</text>
+      <text class="wl" x="360" y="22" text-anchor="middle">WAVE 2</text>
+      <text class="wl" x="640" y="22" text-anchor="middle">WAVE 3</text>
+      <text class="wl" x="920" y="22" text-anchor="middle">WAVE 4</text>
+      <g id="edges">
+        <path class="edge" d="M112 90 C220 90 240 60 328 60"/>
+        <path class="edge" d="M112 90 C220 90 240 130 328 130"/>
+        <path class="edge" d="M112 90 C220 90 240 200 328 200"/>
+        <path class="edge" d="M392 60 C500 60 520 90 608 90"/>
+        <path class="edge" d="M392 60 C500 60 520 160 608 160"/>
+        <path class="edge" d="M112 250 C400 250 500 230 608 230"/>
+        <path class="edge" d="M672 90 C780 90 800 50 888 50"/>
+        <path class="edge" d="M672 90 C780 90 800 110 888 110"/>
+        <path class="edge" d="M672 90 C780 90 800 170 888 170"/>
+        <path class="edge" d="M672 90 C780 90 800 230 888 230"/>
+      </g>
+      <g id="nodes">
+        <g data-wave="1" transform="translate(80 90)"><rect class="n" x="-32" y="-16" width="64" height="32" rx="8"/><text text-anchor="middle" y="4">#246</text><text class="wl" text-anchor="middle" y="30">content model</text></g>
+        <g data-wave="1" transform="translate(80 170)"><rect class="n" x="-32" y="-16" width="64" height="32" rx="8"/><text text-anchor="middle" y="4">#254</text><text class="wl" text-anchor="middle" y="30">auto-vouch</text></g>
+        <g data-wave="1" transform="translate(80 250)"><rect class="n" x="-32" y="-16" width="64" height="32" rx="8"/><text text-anchor="middle" y="4">#251</text><text class="wl" text-anchor="middle" y="30">push relay</text></g>
+        <g data-wave="2" transform="translate(360 60)"><rect class="n" x="-32" y="-16" width="64" height="32" rx="8"/><text text-anchor="middle" y="4">#247</text><text class="wl" text-anchor="middle" y="30">kit + renderer</text></g>
+        <g data-wave="2" transform="translate(360 130)"><rect class="n" x="-32" y="-16" width="64" height="32" rx="8"/><text text-anchor="middle" y="4">#249</text><text class="wl" text-anchor="middle" y="30">voice in context</text></g>
+        <g data-wave="2" transform="translate(360 200)"><rect class="n" x="-32" y="-16" width="64" height="32" rx="8"/><text text-anchor="middle" y="4">#250</text><text class="wl" text-anchor="middle" y="30">web search</text></g>
+        <g data-wave="3" transform="translate(640 90)"><rect class="n" x="-32" y="-16" width="64" height="32" rx="8"/><text text-anchor="middle" y="4">#248</text><text class="wl" text-anchor="middle" y="30">app handoff</text></g>
+        <g data-wave="3" transform="translate(640 160)"><rect class="n" x="-32" y="-16" width="64" height="32" rx="8"/><text text-anchor="middle" y="4">#253</text><text class="wl" text-anchor="middle" y="30">activity view</text></g>
+        <g data-wave="3" transform="translate(640 230)"><rect class="n" x="-32" y="-16" width="64" height="32" rx="8"/><text text-anchor="middle" y="4">#252</text><text class="wl" text-anchor="middle" y="30">push in apps</text></g>
+        <g data-wave="4" transform="translate(920 50)"><rect class="n" x="-32" y="-16" width="64" height="32" rx="8"/><text text-anchor="middle" y="4">#255</text><text class="wl" text-anchor="middle" y="30">watch tiles</text></g>
+        <g data-wave="4" transform="translate(920 110)"><rect class="n" x="-32" y="-16" width="64" height="32" rx="8"/><text text-anchor="middle" y="4">#256</text><text class="wl" text-anchor="middle" y="30">desktop</text></g>
+        <g data-wave="4" transform="translate(920 170)"><rect class="n" x="-32" y="-16" width="64" height="32" rx="8"/><text text-anchor="middle" y="4">#257</text><text class="wl" text-anchor="middle" y="30">android assistant</text></g>
+        <g data-wave="4" transform="translate(920 230)"><rect class="n" x="-32" y="-16" width="64" height="32" rx="8"/><text text-anchor="middle" y="4">#258</text><text class="wl" text-anchor="middle" y="30">iOS doors</text></g>
+      </g>
+    </svg>
+    <div class="legend"><span><i class="free"></i>free — dependencies closed</span><span><i class="build"></i>building — an agent in a worktree</span><span><i class="done"></i>merged — trail posted</span></div>
+  </div>
+</section>
+
+<!-- ===================== 10 · THE LOOP ===================== -->
+<section class="slide close" data-title="The loop" data-steps="4">
+  <div class="head">
+    <div class="eyebrow"><span class="n">09</span>The loop</div>
+    <h2>State lives on GitHub. Knowledge lives in the docs. Sessions are disposable.</h2>
+    <p class="lede">A rumble can be closed the moment its issues exist; a pipeline session can be retired after every wave; an agent is gone the moment it reports. What survives is what the next reader needs: the issue, the design comment, the PR discussion, the trail — and three tables of decisions, gaps and numbers.</p>
+  </div>
+  <div class="body loop">
+    <div data-step="1"><b>Rumble</b>Requirement × platform reality → D-, G-, M-rows → <code>/task-out</code>. Ends there.</div>
+    <div data-step="2"><b>Pipeline</b><code>/pipeline</code> in a new session. Waves of free issues, each through the seven stages.</div>
+    <div data-step="3"><b>Acceptance</b>What only a device can prove — iPad, Pixel, watch — Rico measures at home; the M-row waits until then.</div>
+    <div data-step="4"><b>Next rumble</b>Reads the trails and the open G-rows, decides, and cuts the next arc.</div>
+  </div>
+  <div class="foot"><span>FRZWLF/Lumos · docs/17-dev-pipeline.md</span><span>D-213 · D-224–D-226 · M-080</span><span>Rumble to Main · September 2026</span></div>
+</section>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+(function () {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const G = typeof gsap !== 'undefined' ? gsap : null;
+  const slides = [...document.querySelectorAll('.slide')];
+  const hud = document.getElementById('hud');
+  const counter = document.getElementById('counter');
+  const hint = document.getElementById('hint');
+  let cur = 0, step = 0, busy = false;
+  const stepsOf = s => +(s.dataset.steps || 0);
+  const pad = n => String(n).padStart(2, '0');
+
+  // ---------- per-slide behaviours ----------
+  const running = {};   // timelines to kill on leave
+  const enter = {
+    hero(s) {
+      const ink = s.querySelector('#inkLine'), pulse = s.querySelector('#pulse');
+      if (!G || reduce || !ink) return;
+      const len = ink.getTotalLength();
+      ink.style.strokeDasharray = len; ink.style.strokeDashoffset = len;
+      const tl = G.timeline();
+      tl.to(ink, { strokeDashoffset: 0, duration: 2.4, ease: 'power2.inOut' }, .2)
+        .from(s.querySelectorAll('.nodes > g'), { scale: .4, opacity: 0, transformOrigin: 'center', duration: .6, ease: 'back.out(2)', stagger: .18 }, .3)
+        .from(s.querySelectorAll('h1, .lede, .meta > div'), { y: 26, opacity: 0, duration: .8, ease: 'power3.out', stagger: .12 }, 0);
+      const travel = { t: 0 };
+      const loop = G.to(travel, { t: 1, duration: 9, ease: 'none', repeat: -1, delay: 2.8, onUpdate() { const p = ink.getPointAtLength(travel.t * len); pulse.setAttribute('cx', p.x); pulse.setAttribute('cy', p.y); } });
+      running.hero = [tl, loop];
+      s.querySelectorAll('[data-count]').forEach(el => { const t = +el.dataset.count, suf = el.dataset.suffix || '', o = { v: 0 }; G.to(o, { v: t, duration: 1.6, ease: 'power3.out', delay: .6, onUpdate() { el.textContent = Math.round(o.v) + suf; } }); });
+    },
+    sessions(s) {
+      s.querySelectorAll('.ctx i').forEach(b => { b.style.width = '4%'; });
+    },
+    pipeline(s) { setStage(s, 0); },
+    anchors(s) {
+      const refs = [...s.querySelectorAll('.ref')], rows = [...s.querySelectorAll('.trow')];
+      const status = s.querySelector('#anchorStatus'), text = s.querySelector('#anchorText');
+      const clear = () => { refs.forEach(r => r.classList.remove('lit', 'dead')); rows.forEach(r => r.classList.remove('lit')); status.classList.remove('red'); };
+      if (!G) return;
+      const tl = G.timeline({ repeat: -1, repeatDelay: 1.6 });
+      refs.forEach((ref, i) => tl.call(() => {
+        clear(); const row = rows.find(r => r.dataset.id === ref.dataset.id);
+        if (row) { ref.classList.add('lit'); row.classList.add('lit'); text.textContent = 'doc_anchors: ' + ref.dataset.id + ' → row found'; }
+        else { ref.classList.add('dead'); status.classList.add('red'); text.textContent = 'doc_anchors: references without a row: ' + ref.dataset.id + ' — FAILED'; }
+      }, null, .6 + i * 1.5));
+      tl.call(() => { clear(); text.textContent = 'doc_anchors::every_reference_has_a_row … ok (21 passed)'; }, null, .6 + refs.length * 1.5);
+      running.anchors = [tl];
+    },
+    eval(s) {
+      const hash = s.querySelector('#hash'), line = s.querySelector('#fpLine');
+      s.querySelectorAll('[data-count]').forEach(el => { if (!G) return; const t = +el.dataset.count, o = { v: 0 }; G.to(o, { v: t, duration: 1.4, ease: 'power3.out', delay: .4, onUpdate() { el.textContent = Math.round(o.v); } }); });
+      if (!G) return;
+      const tl = G.timeline({ repeat: -1, repeatDelay: 2 });
+      tl.call(() => { hash.textContent = 'c6298b038aaf59a3'; hash.classList.add('stale'); line.classList.add('stale'); line.textContent = 'STALE en-crit-stove-01 · recorded against 2bc311…, current c6298b… · the prompt moved'; }, null, 2.4);
+      tl.call(() => { line.textContent = 'LUMOS_EVAL_RECORD=1 … recording 148 cases against qwen3:8b · 276 s'; }, null, 4.8);
+      tl.call(() => { hash.classList.remove('stale'); line.classList.remove('stale'); line.textContent = 'replay · 164 fixtures · 0.10 s · neu: 0 · gepinnt: 6 · no STALE'; }, null, 7.6);
+      tl.call(() => { hash.textContent = '2bc311139a201e93'; }, null, 10);
+      running.eval = [tl];
+    },
+    cost(s) { setTimeout(() => s.querySelector('#bars').classList.add('on'), 150); },
+    waves(s) {
+      if (!G) return;
+      const nodes = [...s.querySelectorAll('#nodes > g')], edges = [...s.querySelectorAll('#edges .edge')], now = s.querySelector('#waveNow');
+      const rect = n => n.querySelector('rect');
+      edges.forEach(e => { const l = e.getTotalLength(); e.style.strokeDasharray = l; e.style.strokeDashoffset = l; e.classList.remove('on'); });
+      nodes.forEach(n => { rect(n).classList.remove('free', 'build', 'done'); n.querySelector('text').classList.remove('on'); });
+      const edgeWave = { 2: [0, 1, 2], 3: [3, 4, 5], 4: [6, 7, 8, 9] };
+      const tl = G.timeline({ repeat: -1, repeatDelay: 2.4, delay: .5 });
+      for (let w = 1; w <= 4; w++) {
+        const ns = nodes.filter(n => +n.dataset.wave === w);
+        tl.call(() => { now.textContent = 'wave ' + w + ' · ' + ns.length + ' free'; }, null, '+=0');
+        if (edgeWave[w]) tl.to(edgeWave[w].map(i => edges[i]), { strokeDashoffset: 0, duration: .7, stagger: .08, ease: 'power2.out', onStart() { edgeWave[w].forEach(i => edges[i].classList.add('on')); } });
+        tl.call(() => ns.forEach(n => rect(n).classList.add('free')), null, '+=0');
+        tl.to(ns.map(rect), { scale: 1.06, transformOrigin: 'center', duration: .25, yoyo: true, repeat: 1, stagger: .1 });
+        tl.call(() => ns.forEach(n => { rect(n).classList.remove('free'); rect(n).classList.add('build'); }), null, '+=0.3');
+        tl.to({}, { duration: 1.1 });
+        tl.call(() => ns.forEach(n => { rect(n).classList.remove('build'); rect(n).classList.add('done'); n.querySelector('text').classList.add('on'); }), null, '+=0');
+        tl.to({}, { duration: .5 });
+      }
+      tl.call(() => { now.textContent = 'umbrella done · orchestrator retires'; }, null, '+=0');
+      tl.to({}, { duration: 1.4 });
+      tl.call(() => { nodes.forEach(n => { rect(n).classList.remove('free', 'build', 'done'); n.querySelector('text').classList.remove('on'); }); edges.forEach(e => { e.classList.remove('on'); e.style.strokeDashoffset = e.getTotalLength(); }); now.textContent = 'wave 1'; }, null, '+=0');
+      running.waves = [tl];
+    }
+  };
+  const leave = kind => { (running[kind] || []).forEach(t => t.kill()); delete running[kind]; };
+
+  // ---------- builds (data-step) ----------
+  function applySteps(s, n, animate) {
+    s.querySelectorAll('[data-step]').forEach(el => el.classList.toggle('on', +el.dataset.step <= n));
+    const kind = s.dataset.kind;
+    if (kind === 'pipeline') setStage(s, n);
+    if (s.dataset.title === 'Three sessions') s.querySelectorAll('.session').forEach((c, i) => { const bar = c.querySelector('.ctx i'); if (bar) bar.style.width = (i + 1 <= n) ? bar.dataset.w : '4%'; });
+    if (s.dataset.title === 'Rumble → contract') {
+      const fp = s.querySelector('#funnelPath'); const fl = fp.getTotalLength(); fp.style.strokeDasharray = fl;
+      if (G && animate && n === 5) { G.fromTo(fp, { strokeDashoffset: fl }, { strokeDashoffset: 0, duration: .8, ease: 'power2.out' }); G.to(s.querySelectorAll('.field .line'), { width: (i, el) => el.dataset.w, duration: .6, stagger: .1, delay: .4 }); }
+      else { fp.style.strokeDashoffset = n >= 5 ? 0 : fl; s.querySelectorAll('.field .line').forEach(l => l.style.width = n >= 5 ? l.dataset.w : 0); }
+    }
+  }
+  function setStage(s, i) {
+    const stages = [...s.querySelectorAll('.stage')], panels = [...s.querySelectorAll('.panel')];
+    stages.forEach((st, j) => { st.classList.toggle('is-active', j === i); st.classList.toggle('is-done', j < i); });
+    panels.forEach((p, j) => { const on = j === i; p.classList.toggle('is-active', on); if (on && G && !reduce) G.fromTo(p, { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: .5, ease: 'power3.out', overwrite: true }); });
+    s.querySelector('#progress').style.height = ((i + 1) / stages.length * 100) + '%';
+    const wts = s.querySelectorAll('.wt');
+    if (i === 2 && G) G.fromTo(wts, { scale: .6, opacity: .3 }, { scale: 1, opacity: 1, duration: .5, stagger: .15, ease: 'back.out(2)', onStart() { wts.forEach(w => w.classList.add('on')); } });
+    else wts.forEach(w => w.classList.remove('on'));
+  }
+
+  // ---------- navigation ----------
+  function updateHud() {
+    hud.style.width = ((cur + 1) / slides.length * 100) + '%';
+    counter.textContent = pad(cur + 1) + ' / ' + pad(slides.length);
+    location.replace('#' + (cur + 1));
+    document.title = slides[cur].dataset.title === 'Start' ? 'Rumble to Main' : 'Rumble to Main · ' + slides[cur].dataset.title;
+  }
+  function show(i, dir) {
+    if (busy || i === cur || i < 0 || i >= slides.length) return;
+    const from = slides[cur], to = slides[i];
+    leave(from.dataset.kind || (cur === 0 ? 'hero' : ''));
+    cur = i; step = dir < 0 ? stepsOf(to) : 0;
+    applySteps(to, step, false);
+    to.classList.add('is-current');
+    updateHud();
+    const kind = to.dataset.kind || (i === 0 ? 'hero' : (to.dataset.title === 'Three sessions' ? 'sessions' : ''));
+    const start = () => { if (enter[kind]) enter[kind](to); };
+    if (!G || reduce) { from.classList.remove('is-current'); start(); return; }
+    busy = true;
+    G.timeline({ onComplete() { from.classList.remove('is-current'); G.set(from, { clearProps: 'transform,opacity,filter' }); busy = false; } })
+      .to(from, { opacity: 0, scale: .985, y: -14 * dir, filter: 'blur(4px)', duration: .45, ease: 'power2.in' }, 0)
+      .fromTo(to, { opacity: 0, scale: 1.02, y: 22 * dir }, { opacity: 1, scale: 1, y: 0, duration: .65, ease: 'power3.out', onStart: start }, .25)
+      .fromTo(to.querySelectorAll('.head > *'), { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: .6, ease: 'power3.out', stagger: .08 }, .35);
+  }
+  function next() {
+    hint.classList.add('gone');
+    const s = slides[cur];
+    if (step < stepsOf(s)) { step++; applySteps(s, step, true); return; }
+    show(cur + 1, 1);
+  }
+  function prev() {
+    const s = slides[cur];
+    if (step > 0) { step--; applySteps(s, step, true); return; }
+    show(cur - 1, -1);
+  }
+  document.addEventListener('keydown', e => {
+    if (['ArrowRight', 'ArrowDown', ' ', 'PageDown', 'Enter'].includes(e.key)) { e.preventDefault(); next(); }
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); prev(); }
+    else if (e.key === 'Home') { e.preventDefault(); show(0, -1); }
+    else if (e.key === 'End') { e.preventDefault(); show(slides.length - 1, 1); }
+  });
+  document.getElementById('nextBtn').addEventListener('click', next);
+  document.getElementById('prevBtn').addEventListener('click', prev);
+  document.getElementById('deck').addEventListener('click', e => { if (e.target.closest('a, button, .ticker')) return; next(); });
+  let wheelLock = 0;
+  document.addEventListener('wheel', e => { const t = Date.now(); if (t - wheelLock < 900 || Math.abs(e.deltaY) < 24) return; wheelLock = t; e.deltaY > 0 ? next() : prev(); }, { passive: true });
+  let tx = 0, ty = 0;
+  document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
+  document.addEventListener('touchend', e => { const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty; if (Math.max(Math.abs(dx), Math.abs(dy)) < 40) return; (Math.abs(dx) > Math.abs(dy) ? dx : dy) < 0 ? next() : prev(); }, { passive: true });
+
+  // ---------- boot ----------
+  const track = document.getElementById('tickerTrack'); track.innerHTML += track.innerHTML;
+  slides.forEach(s => applySteps(s, 0, false));
+  const want = parseInt((location.hash || '#1').slice(1), 10);
+  if (want > 1 && want <= slides.length) { slides[0].classList.remove('is-current'); cur = want - 1; slides[cur].classList.add('is-current'); applySteps(slides[cur], 0, false); const k = slides[cur].dataset.kind; if (enter[k]) enter[k](slides[cur]); }
+  else enter.hero(slides[0]);
+  updateHud();
+})();
+</script>
+</body>
+</html>

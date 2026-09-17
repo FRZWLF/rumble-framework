@@ -17,6 +17,7 @@ bindings/
 templates/                     the two agent-file formats
 render.mjs                     node render.mjs <project> [--check]   (Node ≥ 18, no dependencies)
 examples/framework.lumos.json  a full project config
+site/rumble-to-main.html       the framework as a slide deck (open locally; keyboard/click/swipe)
 ```
 
 ## What is canonical, what is bound, what is the project's
