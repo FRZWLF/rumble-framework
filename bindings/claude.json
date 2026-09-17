@@ -1,0 +1,34 @@
+{
+  "name": "claude",
+  "display": "Claude Code",
+  "skill_prefix": "/",
+  "guide_file": "CLAUDE.md",
+  "agents_dir": ".claude/agents",
+  "skills_dir": ".claude/skills",
+  "agent_template": "agent.claude.md.tpl",
+  "agent_ext": ".md",
+  "delegate_note": "`Agent(subagent_type: \"<name>\", model: \"<model>\", isolation: \"worktree\")` — one agent per stage, in its own git worktree; remove the worktree when it reports.",
+  "models": {
+    "cheap": "haiku",
+    "standard": "sonnet",
+    "strong": "opus",
+    "frontier": "fable"
+  },
+  "stages": {
+    "triage":      { "tier": "cheap" },
+    "architect":   { "tier": "frontier" },
+    "S":           { "tier": "standard" },
+    "M":           { "tier": "strong" },
+    "L":           { "tier": "strong" },
+    "review":      { "tier": "strong" },
+    "fix_red":     { "tier": "strong" },
+    "fix_nit":     { "tier": "standard" },
+    "frontier_on": "the architect's `needs: frontier` line — a protocol or algorithm built from a spec, a third-party API without a working example"
+  },
+  "tools": {
+    "read":  "Bash, Read, Glob, Grep",
+    "web":   "Bash, Read, Glob, Grep, WebSearch, WebFetch",
+    "write": "Bash, Read, Edit, Write, Glob, Grep, WebFetch"
+  },
+  "verdict_words": { "red": "🔴", "nit": "🟡" }
+}

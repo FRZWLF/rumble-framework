@@ -1,0 +1,50 @@
+{
+  "project": "Lumos",
+  "repo": "FRZWLF/Lumos",
+  "owner": "FRZWLF",
+  "human": "FRZWLF",
+  "runtimes": ["claude"],
+  "labels": { "build": "claude:build", "triage": "claude:triage" },
+  "agent_names": { "security": "sec-reviewer" },
+  "areas": [
+    { "label": "area:core", "desc": "Rust core, adapters, model, bus, tools, policy" },
+    { "label": "area:voice", "desc": "wake word, STT/TTS, intents, LLM router" },
+    { "label": "area:modules", "desc": "WASM runtime, SDK, manifests, remote modules" },
+    { "label": "area:web", "desc": "dashboard" },
+    { "label": "area:app", "desc": "companion / watch" },
+    { "label": "area:infra", "desc": "fixtures, CI, packaging, GitHub" },
+    { "label": "area:docs", "desc": "docs-only" }
+  ],
+  "risk_high": "auth, policy/tiers, module sandbox, transport, locks/alarm/health, CI/CD",
+  "verify": {
+    "board": "export PATH=\"$HOME/.cargo/bin:$PATH\" && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test && cargo build --release",
+    "extra": "web: `npm ci && npm test && npm run lint && npm run build && npm run tokens:check`; apps per `apps/*/README.md`"
+  },
+  "docs": {
+    "decisions": "docs/02-principles-and-decisions.md",
+    "gaps": "docs/14-gap-analysis.md",
+    "measurements": "docs/16-measurements.md",
+    "research": "docs/15-research-log.md",
+    "standards": ".claude/standards/engineering-standards.md",
+    "threat_model": "docs/08-security-privacy.md"
+  },
+  "standards_project_sections": ".claude/standards/engineering-standards.project.md",
+  "implementers": [
+    { "name": "core-dev", "description": "Implements Rust work in the Lumos core — adapters, semantic model, event bus, tool registry, policy layer, voice pipeline, module runtime, infra, docs.",
+      "areas": ["area:core", "area:voice", "area:modules", "area:infra", "area:docs"],
+      "rules": "- Async: tokio; never hold a `std::sync` lock across `.await`; bounded channels.\n- Errors: `anyhow` at the edges, typed errors where callers branch; no `unwrap()` outside tests.\n- Everything the AI can trigger is a tool with a tier; nothing device-affecting bypasses `ToolRegistry.call()` (P6, D-015).\n- Tests must not need a live Home Assistant; the fixture on 8123 is for manual checks." },
+    { "name": "web-dev", "description": "Implements the Lumos web dashboard (kiosk-capable web app that talks to the core). Flow and states first, visual design only when the issue says so.",
+      "areas": ["area:web"], "rules": "- Flow and states first; visual design only when the issue says so.\n- No `dangerouslySetInnerHTML`; every URL from a card is https-only.\n- `npm test`, lint, build and `tokens:check` green." },
+    { "name": "app-dev", "description": "Implements the Lumos companion and watch apps — presence, push, handoff, pairing — to Lumos standards.",
+      "areas": ["area:app"], "rules": "- The device key never leaves the Secure Enclave / Keystore; the pinned client is the only path to the core.\n- Unit tests with fakes; device builds `CODE_SIGNING_ALLOWED=NO`; acceptance steps in `apps/*/ACCEPTANCE.md` for Rico." }
+  ],
+  "mandatory_suites": [
+    { "when_paths": ["core/src/intent/", "core/src/policy/", "any `ToolSpec {` construction site (grep the diff; the type is in core/src/tools.rs, one is built at every registration site)"],
+      "run": "cargo test --test eval critical -- --nocapture",
+      "red_when": "a new misaction, or a STALE fixture left unrecorded (D-225) — re-record with the tree's RE_RECORD command, never by hand",
+      "honest_line": "0 new critical misactions, pinned set unchanged (RECORDED_MISACTIONS, M-083)",
+      "rule": "D-226" }
+  ],
+  "limits": { "parallel_builders": 3, "fix_rounds": 2, "split_lines": 3000, "disk_floor_gb": 80 },
+  "project_notes": { "fixtures": "Home Assistant in Docker on 8123, `infra/dev/`; a live core may be on 8787 — never bind either", "offline_tests": "CI has no Home Assistant" }
+}

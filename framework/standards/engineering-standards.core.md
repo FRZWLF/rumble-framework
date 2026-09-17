@@ -1,0 +1,140 @@
+# {{project}} Engineering Standards
+
+Binding for every agent in this repo. Repo conventions live in `{{runtime.guide_file}}`; on conflicts of
+style the guide wins, on conflicts of safety this document wins.
+
+## Reuse before writing
+
+- Before adding a function, type or module: search the workspace for an existing one. Extend
+  or reuse; do not duplicate. A third near-copy means extract a shared helper instead.
+- Prefer what the platform already gives us over reimplementing. If you replace something existing, cite the measurement that justifies it.
+
+## Correctness & tests
+
+- Every behavior change ships with tests that fail without the change; tests assert
+  behavior, not implementation.
+- Run the full verify board before handing over; a red board is never handed on.
+- Anything measurable (latency, accuracy, event loss, cost) gets measured and written to
+  `{{docs.measurements}}` when the number matters for a decision.
+{{#if has_mandatory}}- **Mandatory suites by path** — the rule is a path predicate, not a file list; a fixed list
+  drifts the day a new registration site appears:{{#each mandatory}}
+  - diff touches {{item.when_line}} → `{{item.run}}` is part of the verify board regardless of
+    what the PR otherwise names; a red result ({{item.red_when}}) is a red finding, never a nit;
+    the PR states the result honestly{{#if item.honest_line}} ("{{item.honest_line}}"){{/if}} ({{item.rule}}).{{/each}}
+{{/if}}
+{{project_sections}}
+## Security & privacy
+
+- No secrets in code, logs or errors; configuration from the environment.
+- Validate and type all external input at the boundary (messages, tool arguments, manifests,
+  HTTP, paths).
+- Least privilege: capabilities deny-by-default; tokens and credentials scoped; no inbound
+  ports the design does not name.
+- New dependencies need a one-line justification in the task log (what, why, alternative
+  considered); prefer well-maintained dependencies with permissive licenses (Apache/MIT).
+- Always `risk:high`: {{risk_high}}.
+
+## Efficiency
+
+- No premature optimization, but no obvious waste: no blocking work in async hot paths,
+  no unbounded channels/collections, no lock held across `.await`, no per-event allocation
+  storms.
+
+## Maintainability
+
+- Small focused modules; code reads like the surrounding code (idiom, naming, comment density).
+- Doc comments on public APIs and non-obvious constraints only.
+- Conventional commits, no AI co-author trailers.
+- Architecture-shaping decisions get a `D-xxx` entry (or a `G-xxx` if genuinely open);
+  do not decide silently in code.
+
+## "v1" is a claim, not a label
+
+Shipping something as "v1" / "for now" / "deferred" is allowed only when it is the smaller
+**correct** thing — never as a nicer word for unfinished. Every such claim must name, in the
+same PR:
+
+- **what is unfinished about it**, concretely, and
+- **the condition that triggers the next step** — a measurement threshold, a pending
+  decision (`G-xxx`), or a usage signal. Not "later", not "when we have time".
+
+That pair lives in a `G-` row; a "v1" without one is not a v1, it is unfinished work with a
+label. Reviewers treat a missing trigger condition like a missing test. Where a residual is
+genuinely irreducible (a peer can lie, a distinction is undecidable), say so plainly and pin
+it with a test that goes red if someone ever closes it — a documented limit always beats an
+invented guarantee.
+
+Corollary for risk: a known residual risk to **honesty or safety** is closed by engineering,
+not accepted by note. If closing it would gut the feature, hand the trade to {{human}} with both
+costs quantified instead of choosing silently.
+
+## A check that cannot produce the case is not a check
+
+Four times in one arc of the project this rule was written in, work passed because the *verification* could not reach the defect —
+never because anyone skipped a step:
+
+- a reasoning-leak detector whose trigger fired on a tag its own filter consumed, so the
+  documented case was the one case it could not see;
+- a formatting scan whose regex required a letter after the run, and the one defect had a
+  bracket there;
+- test scripts that never used more than one acting call per round, so a whole bug class
+  was unreachable for three review rounds;
+- a 252-cell matrix that bounded a length from below but never from above, so deleting the
+  clause that distinguishes the default mode from the widest one left every test green.
+
+**A green result from a check that cannot produce the case looks exactly like a green result
+from a sound one.** So:
+
+- When a test, scan or eval defends a property, state the *shape* it must be able to see,
+  and confirm it can: **mutate the code and watch it go red.** An assertion no mutation
+  breaks is decoration.
+- Prefer enumerating a space to sampling a point. If the matrix is too large to write by
+  hand, that is the argument for generating it, not for picking one case.
+- Derive expectations from what the thing *means*, by hand. An expectation read back from
+  the implementation cannot catch the implementation.
+- Absence assertions need a companion presence assertion in the same run, or they pass by
+  the case never being produced.
+- Verify a claim by re-reading the artifact, not the report — read each caption against its
+  own table, each doc comment against the code beneath it. Grep for the wording you
+  *retracted*, not the wording you remember.
+
+Corollary observed the same day: **the number that goes stale is reliably the one that
+flattered us.** When prose and table disagree, expect the prose to be the optimistic one,
+and be most suspicious of drift in that direction.
+
+## A reference without an anchor is a red finding
+
+Four times in one arc of the project this rule was written in, code or docs referenced
+something that did not exist: a doc comment promising a lever no code called, a mapping the
+doc claimed and a dead branch never performed, a comment citing a gap row nobody had written,
+and three gap links plus a measurement id pointing at rows that were never created.
+
+Each read like housekeeping; each was a false statement in the tree — the reader who follows
+the reference finds nothing, and builds on the promise anyway. So:
+
+- A reference to a D-/G-/M-row, a lever, a function, or a mapping that does not exist is a
+  **red finding**, not a style nit. Fix is one of two: create the anchor now, or change the
+  reference to state what actually exists (a declared handover to a named split counts;
+  a bare "will come later" does not).
+- Writing the anchor may cross a split boundary: correcting a false statement in the tree
+  outranks "that document belongs to a later split" (same rule as for doc rows made false
+  by a merge).
+- Reviewers grep the diff's references (`G-\d+`, `M-\d+`, `D-\d+`, named functions/levers in
+  prose) against the tree as a standard pass.
+- The same pass covers **self-declared gaps**: a comment admitting "unwitnessed", "no test
+  drives this", "unproven" must point at the G-row or issue that collects it. A note naming a gap
+  is a confession, not a net; the anchor is what makes someone come back for it.
+
+## Escalation (all agents)
+
+Stop and escalate — comment the findings on the issue and add the label
+`needs-human` with {{human}} as assignee — instead of guessing, when:
+
+- The spec is ambiguous about user-visible or safety-relevant behavior.
+- The task needs a destructive/irreversible action (deleting data, changing auth/policy
+  semantics, force-push) that the spec does not explicitly call for.
+- Verification cannot be made green within budget.
+- The task is much larger than its `size:*` (say what you found).
+
+An escalated task is a success. Guessing is the failure mode.
+

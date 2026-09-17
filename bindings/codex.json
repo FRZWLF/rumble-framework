@@ -1,0 +1,30 @@
+{
+  "name": "codex",
+  "display": "OpenAI Codex",
+  "skill_prefix": "$",
+  "guide_file": "AGENTS.md",
+  "agents_dir": ".codex/agents",
+  "skills_dir": ".agents/skills",
+  "agent_template": "agent.codex.toml.tpl",
+  "agent_ext": ".toml",
+  "delegate_note": "delegate to the named custom agent (`.codex/agents/<name>.toml`); the root agent is the only actor that mutates GitHub. Give implementers an isolated git worktree and remove it when they report.",
+  "models": {
+    "cheap": "gpt-5.6-luna",
+    "standard": "gpt-5.6-terra",
+    "strong": "gpt-5.6-sol",
+    "frontier": "gpt-5.6-astra"
+  },
+  "stages": {
+    "triage":      { "tier": "cheap",    "effort": "low" },
+    "architect":   { "tier": "strong",   "effort": "high" },
+    "S":           { "tier": "cheap",    "effort": "medium" },
+    "M":           { "tier": "standard", "effort": "high" },
+    "L":           { "tier": "strong",   "effort": "high" },
+    "review":      { "tier": "strong",   "effort": "high" },
+    "fix_red":     { "tier": "strong",   "effort": "high" },
+    "fix_nit":     { "tier": "standard", "effort": "medium" },
+    "frontier_on": "never in a delegated stage — Astra is reserved for the rumble session and chosen by Rico there; no delegated stage runs above `high`"
+  },
+  "sandbox": { "read": "read-only", "web": "read-only", "write": "workspace-write" },
+  "verdict_words": { "red": "RED", "nit": "YELLOW" }
+}
