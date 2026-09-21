@@ -55,7 +55,7 @@ const STAGES = ['issue','triage','design','build','review','fix','gate','trail']
 const stageOf = e => ({ issue:'issue', labeled:'triage', unlabeled:'triage', triage:'triage', design:'design', pr:'build', commit:'build', review:'review', 'fix-round':'fix', merged:'gate', closed:'gate', trail:'trail', comment:'build' })[e.kind] || 'build';
 const esc = s => String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const md = s => esc(s).replace(/```([\s\S]*?)```/g, '<pre>$1</pre>').replace(/`([^`\n]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
-const verdictClass = v => !v ? '' : /🔴|RED/.test(v) ? 'red' : /🟡|YELLOW/.test(v) ? 'yellow' : 'clean';
+const verdictClass = v => !v ? '' : /🔴|\bRED\b|[1-9]\d* red/i.test(v) ? 'red' : /🟡|\bYELLOW\b|[1-9]\d* nit/i.test(v) ? 'yellow' : 'clean';
 const params = new URLSearchParams(location.search);
 const src = params.get('data');
 const rail = document.getElementById('rail'), stepper = document.getElementById('stepper');
