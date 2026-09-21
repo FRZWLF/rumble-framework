@@ -31,7 +31,8 @@ for (const c of api(`repos/${repo}/issues/${issue}/comments`)) {
 }
 
 // the PR(s) that reference the issue
-const prs = api(`repos/${repo}/pulls?state=all&per_page=100`).filter(p => new RegExp(`(close[sd]?|fixe?[sd]?|resolve[sd]?)\\s+#${issue}\\b`, 'i').test(p.body || ''));
+// a PR belongs to the issue when its title or body names it (Closes #N, "PR-A of 3 (#N)", Part of #N)
+const prs = api(`repos/${repo}/pulls?state=all&per_page=100`).filter(p => new RegExp(`#${issue}\\b`).test(`${p.title}\n${p.body || ''}`));
 for (const p of prs) {
   push(p.created_at, 'pr', p.user.login, p.title, { body: p.body, url: p.html_url, number: p.number, draft: p.draft });
   for (const c of api(`repos/${repo}/pulls/${p.number}/commits`)) push(c.commit.author.date, 'commit', c.author?.login || c.commit.author.name, c.commit.message.split('\n')[0], { sha: c.sha.slice(0, 7) });
