@@ -17,8 +17,16 @@ bindings/
 templates/                     the two agent-file formats
 render.mjs                     node render.mjs <project> [--check]   (Node ≥ 18, no dependencies)
 examples/framework.lumos.json  a full project config
+scripts/check-anchors.mjs      node scripts/check-anchors.mjs <project>   — every D-/G-/M- reference has a row, every link resolves
+scripts/replay-from-gh.mjs     node scripts/replay-from-gh.mjs <owner/repo> <issue> > site/replays/issue-N.json
 site/rumble-to-main.html       the framework as a slide deck (open locally; keyboard/click/swipe)
+site/replay.html               animates one issue's real trail (?data=replays/issue-N.json)
+docs/onboarding-existing-project.md   ADRs, existing CI, teams: how to adopt without a rewrite
 ```
+
+Example project: [`FRZWLF/requisit`](https://github.com/FRZWLF/requisit) — a B2B
+purchase-requisition service built from an empty repo through rumble → task-out → pipeline;
+`docs/presentation/storyline.md` there is the talk that walks through it.
 
 ## What is canonical, what is bound, what is the project's
 
@@ -39,8 +47,11 @@ The renderer never touches the parts of the guide file outside the
    safety sections — the core is prepended.
 3. The two markers in `CLAUDE.md` / `AGENTS.md` where the framework section belongs.
 4. `node ../rumble-framework/render.mjs .` — commit the generated files.
-5. Add `node ../rumble-framework/render.mjs . --check` to the project's verify board (or CI),
-   so a hand edit to a generated file fails the way an edited token file fails `tokens:check`.
+5. Add `node ../rumble-framework/render.mjs . --check` and
+   `node ../rumble-framework/scripts/check-anchors.mjs .` to the project's verify board (or
+   CI), so a hand edit to a generated file, or a `D-`reference without a row, fails the way
+   an edited token file fails `tokens:check`.
+6. Optional: `"gate": { "merge": "human" }` when a person, not the orchestrator, merges.
 
 Changing the process = editing `framework/` here, re-rendering every project, committing the
 generated diff there. Changing a model = editing a binding. Changing a label or a suite =

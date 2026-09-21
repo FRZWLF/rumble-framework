@@ -71,6 +71,7 @@ function contextFor(binding) {
     implementers, mandatory: mandatory, has_mandatory: mandatory.length > 0,
     limits: Object.assign({ parallel_builders: 3, fix_rounds: 2, split_lines: 3000, disk_floor_gb: 80 }, cfg.limits || {}),
     project_notes: cfg.project_notes || {},
+    gate: { merge: (cfg.gate && cfg.gate.merge) || 'orchestrator', human_merges: !!(cfg.gate && cfg.gate.merge === 'human') },
     agents: { security: (cfg.agent_names && cfg.agent_names.security) || 'sec-reviewer' },
   };
 }

@@ -97,12 +97,15 @@ report, and a second re-review runs only if the fix touched auth, transport or p
 - **Merging `main` into the branch is your job**, never a nit round's: resolve, then verify
   (`doc_anchors`-style checks, the touched suites), *then* commit — never chain the
   resolver and the commit in one shell line; a failed resolution must not push.
-- Clean (any risk) → `gh pr ready <PR>` then `gh pr merge <PR> --squash --delete-branch`
+{{#if gate.human_merges}}- Clean (any risk) → `gh pr ready <PR>`, `gh pr edit <PR> --add-assignee {{human}}` and post
+  the evidence summary as a PR comment; **a person merges** (`gate.merge: human`). Continue
+  with the issues that do not depend on this one; when the merge lands, pull `main` and run
+  the **full verify board on `main`** — for every merge, docs-only included. If red: escalate.{{else}}- Clean (any risk) → `gh pr ready <PR>` then `gh pr merge <PR> --squash --delete-branch`
   (squash message = PR title/body; "Closes #N" closes the issue). Pull `main`, run the
   **full verify board on `main`** — for every merge, docs-only included (unit tests read the
   docs). If red: revert the merge commit, escalate. {{human}} authorised merging in their
   name; on `risk:medium|high` also `gh pr edit <PR> --add-assignee {{human}}` — they review
-  after the fact via the trail.
+  after the fact via the trail.{{/if}}
 - If the harness (permission mode or classifier) refuses `gh pr merge`, do not work around
   it: hand {{human}} the exact command and continue with everything that does not depend on
   the merge.

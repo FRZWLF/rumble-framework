@@ -21,8 +21,9 @@ security only on `risk:high`) · fix rounds `{{runtime.stages.fix_red.model}}` o
 {{runtime.verdict_words.red}}, `{{runtime.stages.fix_nit.model}}` on nits · the frontier
 model {{runtime.stages.frontier_on}}. At most {{limits.fix_rounds}} fix rounds, one
 re-reviewer; reviewers reuse the PR's evidence; the full board runs once on `main` after
-every merge. {{human}} authorised merging in their name; `risk:medium|high` PRs are assigned
-to {{human}} for review after the fact via the 📋 trail.
+every merge. {{#if gate.human_merges}}The gate stops at `gh pr ready`; {{human}} merges every PR after reading
+the trail.{{else}}{{human}} authorised merging in their name; `risk:medium|high` PRs are assigned
+to {{human}} for review after the fact via the 📋 trail.{{/if}}
 
 **Verify board.** `{{verify.board}}`{{#if verify.extra}} · {{verify.extra}}{{/if}}{{#if has_mandatory}}
 {{#each mandatory}}
