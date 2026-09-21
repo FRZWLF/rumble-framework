@@ -26,7 +26,7 @@ for (const e of api(`repos/${repo}/issues/${issue}/events`)) {
 }
 for (const c of api(`repos/${repo}/issues/${issue}/comments`)) {
   const b = c.body || '';
-  const kind = b.includes('🏛') ? 'design' : b.includes('claude-fix-round') ? 'fix-round' : b.includes('📋') ? 'trail' : /triage/i.test(b.slice(0, 80)) ? 'triage' : 'comment';
+  const kind = /📋 Pipeline/.test(b) ? 'trail' : b.includes('claude-fix-round') ? 'fix-round' : /^#{0,4}\s*🏛/m.test(b) || b.includes('🏛 Design') ? 'design' : /triage/i.test(b.slice(0, 80)) ? 'triage' : 'comment';
   push(c.created_at, kind, c.user.login, b, { url: c.html_url });
 }
 

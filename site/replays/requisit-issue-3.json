@@ -2,7 +2,7 @@
  "repo": "FRZWLF/requisit",
  "issue": 3,
  "title": "Approval rules and the requisition lifecycle API",
- "exported": "2026-09-21T17:02:41.778Z",
+ "exported": "2026-09-21T18:18:57.464Z",
  "events": [
   {
    "at": "2026-09-21T14:17:34Z",
@@ -210,7 +210,7 @@
   },
   {
    "at": "2026-09-21T16:30:14Z",
-   "kind": "design",
+   "kind": "trail",
    "who": "FRZWLF",
    "text": "## 📋 Pipeline (in-chat) — issue #3 → PR #8 → `4ab54a1`\n\n| stage | model | outcome | tokens |\n|---|---|---|---|\n| triage | haiku | blocked on #2 (first pass) · area:api · size:L · risk:high · pipeline:build (second pass) | 69192 |\n| architect | fable | 🏛 Design: rules, lifecycle table, HTTP pipeline, endpoint contracts, D-023/D-024 | 170828 |\n| implement | opus | draft PR #8 — 5 502 lines, 389 tests, 13 mutations (11 red, 2 explained) | 315524 |\n| quality review | opus | findings (1 red, 4 nits) — a draft with an unsummable total was persisted without audit and poisoned the org's list | 138061 |\n| security review | opus | findings (0 red, 6 nits) — actor-less idempotency ledger (replay + pre-claim), body cap after read, shutdown, nosniff | 126927 |\n| fix round 1 | opus | 10 of 11 fixed, 1 declined with reason (G-018), migration 0002, 402 tests; ran as two agents — the first was cut off by the harness before commit, the second completed | 276882 |\n| re-review quality | opus | clean | 86444 |\n| re-review security | opus | findings (0 red, 2 nits) — one fixed at the gate | 64379 |\n| gate | orchestrator | migration comment corrected, board green on branch and on `main` (typecheck · 402/402 · lint · anchors 24 D · 19 G · 10 M · render 19 files) | — |\n| **total** | | | **1248237** |\n\n**Reviews found:** the one real bug — refusals decided after the first write, so a rejected total committed a half-requisition; the idempotency ledger let any org member replay or pre-claim another member's response; an UPDATE of a rule row moves in-flight authority (documented in G-018 instead of hidden); body cap, shutdown and nosniff hardening.\n\n**Decisions:** one PR at 5.5k lines (test volume the design's own table demanded; PR-A would have shipped without the HTTP suites that #4/#5 wait on) — logged for M-009. PR assigned to FRZWLF for the after-the-fact risk:high review.\n\n**Manual steps left for FRZWLF:** G-017 (a cost centre owned by its own buyer is a dead end — product call between three options); G-018 (rule edits vs in-flight requisitions).\n\n**Follow-ups:** oversize refusal holds the socket until the client reads (bounded by Node's requestTimeout) — note for a later hardening pass.\n",
    "url": "https://github.com/FRZWLF/requisit/issues/3#issuecomment-5763935996"
