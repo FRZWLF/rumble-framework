@@ -1,0 +1,139 @@
+{
+ "repo": "FRZWLF/requisit",
+ "issue": 4,
+ "title": "The web UI for buyer and approver",
+ "exported": "2026-09-21T17:02:45.029Z",
+ "events": [
+  {
+   "at": "2026-09-21T14:17:36Z",
+   "kind": "issue",
+   "who": "FRZWLF",
+   "text": "The web UI for buyer and approver",
+   "body": "\n## Goal\nFour server-rendered pages — buyer list, draft editor, requisition detail with its history, and the\napprover queue — that make the rule, the amount and the reason visible before and after a decision.\n\n## Context\nPart of #6.\nBuilds on split 3: the same HTTP API, the same typed refusals, the same `OrgScope`. The UI is a\nclient of the API, not a second implementation of the rules.\n\nHonor D-013 (server-rendered HTML from small template functions + a ~50-line vanilla-JS `fetch`\nhelper; **no framework, no bundler, no build step**; one hand-written stylesheet served static; all\noutput through one `esc()` helper — templates take data, never raw HTML; the demo token is entered\nonce and kept in `sessionStorage`, never in a URL, a log or a query string), D-012 (the same\n`node:http` router serves the pages and the static assets), D-016 (a refusal is rendered as a human\nsentence carrying its stable `code`; a cross-org id shows the same \"not found\" page as an unknown\nid), D-010 (the client generates an `Idempotency-Key` per user action — a submit/approve/reject\nbutton press — and reuses it on retry, so a double-click is one state change), D-003 (amounts always\nrendered with their currency via `formatMoney`; never a bare number), D-009 (a rejection form\nrequires a reason before it will submit; a rejected requisition offers \"copy to a new draft\", not\n\"reopen\"), D-007 (the detail page renders the audit history verbatim: actor, action, rule, amount,\ntimestamp, reason).\n\n**Do NOT**: add React/Vue/Svelte/htmx or any npm package; add a bundler or a CSS framework; put the\ntoken in a URL or a cookie without `HttpOnly`/`SameSite` reasoning written in the PR; re-implement\nrule matching or authority checks in the browser (ask the API, render the answer); build HTML by\nstring concatenation of untrusted values or use `innerHTML` with server data; hide a refusal behind\na generic \"something went wrong\".\n\nPages: `GET /` (redirect by role) · `/requisitions` (buyer list, filter by state) ·\n`/requisitions/new` and `/requisitions/:id/edit` (draft editor: catalogue picker, quantity, cost\ncentre, note, live computed total and the rule that would match) · `/requisitions/:id` (detail +\nhistory + the action buttons the actor is actually allowed) · `/approvals` (the approver queue,\noldest first, with amount and matched rule per row).\n\nNew rows: none reserved. A `D-` row is expected only if the token-handling choice in the browser\nneeds to differ from D-013 — in which case write it, do not quietly diverge.\n\n## Acceptance criteria\n- [ ] The four routes render valid HTML with no JavaScript required for every **read** path; a test\n      asserts the detail and queue pages render fully with the client script removed.\n- [ ] The draft editor shows the computed total and the rule that would match, updating when a line\n      or quantity changes, and a test asserts the displayed rule equals the API's answer for the\n      same input (no second implementation).\n- [ ] Escaping: a requisition note, an item name and a rejection reason each containing\n      `<img src=x onerror=alert(1)>` and `\"><script>` render as text; a test asserts the raw string\n      is absent from the response and the escaped form is present, for every template that takes\n      free text.\n- [ ] Buttons reflect authority: an approver who may not approve this requisition sees no approve\n      button **and** a direct POST returns `not_authorised` (the server is the gate; the UI is a\n      courtesy) — both asserted.\n- [ ] Rejecting requires a reason; the buyer's detail page shows that reason verbatim; the history\n      block shows every audit line with actor, rule and amount.\n- [ ] Double-clicking submit or approve produces one state change: the client reuses one\n      `Idempotency-Key` per action, asserted by a test that fires the same action twice.\n- [ ] Every amount on every page carries its currency; a JPY organisation renders no decimals.\n- [ ] No token appears in any URL, any server log line, or any rendered page source; a test greps\n      the captured log output of a full walkthrough for the token string.\n- [ ] `npm ci` installs no runtime dependency and no build step was added; the board is green.\n\n## Test expectations\n`node --test` with the router invoked in-process; assertions on the returned HTML string (substring\nand absence assertions — no DOM library, no headless browser). A `ui/walkthrough` test drives the\nwhole buyer→approver→buyer story through the page handlers and asserts what each page shows at each\nstep. An `ui/escaping` table test covers every free-text field × every template. Accessibility floor\nasserted mechanically where it is cheap: every input has a label, every button has text, the page has\na `<title>` and one `<h1>`.\n\n## Out of scope\nVisual design beyond a plain, legible stylesheet; mobile-specific work and anything PWA (G-003);\nnotifications (G-014); the outbox and merchant-facing pages (04) — the merchant has no UI in v1;\nadmin screens for editing rules or people (seed script only); i18n; the agent (Arc 2).\n\nDepends on: #3\n\n## Suggested routing\narea:web · size:M · risk:medium — triage makes the final call\n\n",
+   "url": "https://github.com/FRZWLF/requisit/issues/4"
+  },
+  {
+   "at": "2026-09-21T14:17:37Z",
+   "kind": "labeled",
+   "who": "FRZWLF",
+   "text": "type:task"
+  },
+  {
+   "at": "2026-09-21T14:18:26Z",
+   "kind": "labeled",
+   "who": "FRZWLF",
+   "text": "area:web"
+  },
+  {
+   "at": "2026-09-21T14:18:26Z",
+   "kind": "labeled",
+   "who": "FRZWLF",
+   "text": "size:M"
+  },
+  {
+   "at": "2026-09-21T14:18:26Z",
+   "kind": "labeled",
+   "who": "FRZWLF",
+   "text": "risk:medium"
+  },
+  {
+   "at": "2026-09-21T14:18:26Z",
+   "kind": "labeled",
+   "who": "FRZWLF",
+   "text": "blocked"
+  },
+  {
+   "at": "2026-09-21T14:18:29Z",
+   "kind": "triage",
+   "who": "FRZWLF",
+   "text": "🔎 Triage: area:web · size:M · risk:medium – blocked on open dependency #3",
+   "url": "https://github.com/FRZWLF/requisit/issues/4#issuecomment-5761987336"
+  },
+  {
+   "at": "2026-09-21T16:30:18Z",
+   "kind": "unlabeled",
+   "who": "FRZWLF",
+   "text": "blocked"
+  },
+  {
+   "at": "2026-09-21T16:30:19Z",
+   "kind": "comment",
+   "who": "FRZWLF",
+   "text": "Dependencies resolved: #3 merged as `4ab54a1`.",
+   "url": "https://github.com/FRZWLF/requisit/issues/4#issuecomment-5763937072"
+  },
+  {
+   "at": "2026-09-21T16:31:07Z",
+   "kind": "labeled",
+   "who": "FRZWLF",
+   "text": "pipeline:build"
+  },
+  {
+   "at": "2026-09-21T16:31:13Z",
+   "kind": "triage",
+   "who": "FRZWLF",
+   "text": "🔎 Triage: area:web · size:M · risk:medium – buildable; dependency #3 resolved",
+   "url": "https://github.com/FRZWLF/requisit/issues/4#issuecomment-5763948806"
+  },
+  {
+   "at": "2026-09-21T16:50:16Z",
+   "kind": "commit",
+   "who": "FRZWLF",
+   "text": "feat(web): the buyer and approver pages - server-rendered HTML, one esc(), a cookie session (#4, D-025)",
+   "sha": "5d957fb"
+  },
+  {
+   "at": "2026-09-21T16:52:00Z",
+   "kind": "pr",
+   "who": "FRZWLF",
+   "text": "The web UI for buyer and approver — server-rendered pages, one esc(), a cookie session (#4, D-025)",
+   "body": "Closes #4\n\n## Summary\nFour server-rendered pages on the same `node:http` router, the same origin and the same use\ncases as the JSON API: the buyer list (`/requisitions`, filterable by state), the draft editor\n(`/requisitions/new`, `/requisitions/:id/edit` — catalogue picker, quantity, cost centre, note,\nand the server's running total plus the rule that would match), the requisition detail with its\naudit history and the actions this caller may actually take, and the approver queue\n(`/approvals`, oldest wait first). New code lives in `src/web/`; the only change outside it is a\nsix-line mount in `src/http/app.ts` that hands every non-`/api/` path to `handleWeb` — the JSON\nsurface, including its single `not_found` mapping, is byte-for-byte what it was.\n\nNothing re-implements a rule: the handlers call `createDraft`/`submit`/`approve`/`reject`/\n`cancel`/`copyForward` from `src/app/requisitions.ts`, render `actions` for the buttons and\n`matchRule` (server-side) for the editor's preview. Every value goes through one `esc()`. The\n~50 lines of vanilla JS do exactly two things — ask `POST /requisitions/preview` for the total\nand the rule and set them with `textContent`, and stop a second submit — and every **read** path\nrenders fully without them. Zero runtime dependencies, no bundler, no build step; the stylesheet\nand the client script are source constants served from `/static/` (`tsc` emits `.js` only, so a\n`.css` under `src/` would simply not exist in `dist/`).\n\n**D-025 amends D-013's `sessionStorage` clause** (the issue anticipated exactly this row). A\nbrowser navigation carries no `Authorization` header, so a page that must read without JavaScript\ncannot be authenticated from `sessionStorage`. The session is therefore the same personal token in\nan `HttpOnly; SameSite=Strict; Path=/` cookie, `Secure` off localhost, set by a `POST /sign-in`\nform and never rendered again — resolved by the same `verifyToken` → `resolveScope` pair, so there\nis no second identity mechanism and no session store. `HttpOnly` is *stronger* than\n`sessionStorage` (script cannot read the token at all); `SameSite=Strict` plus a `Sec-Fetch-Site`\ncheck on every mutating page route is the CSRF answer, alongside `form-action 'self'` and the\nrequired `version`. Pages also carry `Content-Security-Policy: default-src 'none'; script-src\n'self'; …`, `Referrer-Policy: no-referrer` and `Cache-Control: no-store`; `nosniff` was already\nglobal.\n\nEach form carries the `Idempotency-Key` the server rendered into it, so a double-click, a reload\nof the POST or a retry is one state change — with **or without** JavaScript — through the same\nD-010 ledger the API uses (a `303` stores its `Location`, anything else stores the page).\n\n## Evidence for the reviewers\n\n**Board, all green** (`npm ci && npm run typecheck && npm test && npm run lint &&\ncheck-anchors.mjs && render.mjs --check`): typecheck clean · **434 tests, 434 pass, 0 fail**\n(~5.5 s) · lint clean · anchors `25 D · 21 G · 10 M rows, every reference resolves` · framework\n`19 generated files match`. 30 files, +3 177 / −3. New suites in `test/web/` (25 tests):\n`walkthrough` 2 · `escaping` 3 · `no-js` 3 (incl. the accessibility floor) · `authority` 6 ·\n`idempotency` 5 · `money` 4 · `session` 6 · `preview` 3. Everything runs in-process through\n`dispatch` with no listening port, offline, `:memory:` (D-014).\n\n**Mutations — seven tried, seven went red:**\n\n| # | Mutation | What went red |\n|---|---|---|\n| 1 | `esc()` stops escaping `\"` | `escaping`: the raw `\"><script>…` payload reaches the page |\n| 2 | the session cookie loses `HttpOnly` | `session`: the cookie-attribute assertion |\n| 3 | the detail always offers **Approve** | `authority`: finance is offered a button it may not press (the direct POST still refused — which is the point of asserting both halves) |\n| 4 | the idempotency ledger stops replaying | `idempotency`: 4 of 5 — two submits, two approves, two drafts |\n| 5 | `amount()` renders the bare minor-unit number | `money` + `walkthrough`: 4 tests, \"an amount without its currency\" |\n| 6 | the `Sec-Fetch-Site` guard always passes | `session`: the cross-site post goes through |\n| 7 | the editor ships an empty server-rendered total | `no-js` + `preview`: the no-JavaScript read path loses its figures |\n\nEach mutation was applied to the committed tree, the suite run, and the file restored with\n`git checkout`; the tree is clean.\n\n**Acceptance criteria, each with the assertion that pins it:** no-JS read paths\n(`no-js.test.ts`, which strips every `<script>` element and then demands the amount, the rule,\nthe actor, both decision forms and the hidden key are still there) · editor total + rule equal\nthe API's answer (`preview.test.ts` walks five inputs straddling **both** rule ceilings —\ninclusive on 10 000 and 500 000 — compares the preview's `ruleCode` to the rule the API *stores*\nat submission, and asserts the set of rules seen is `{R1,R2,R3}` so the equality cannot have held\nvacuously for one rule) · escaping (`escaping.test.ts` runs `<img src=x onerror=alert(1)>` and\n`\"><script>alert(\"xss\")</script>` through every template that takes free text — line note, item\nname, cost centre name, person name, organisation name, rejection reason, and the refusal\nsentence that quotes the input — asserting raw-absent **and** escaped-present each time) ·\nauthority (button absent **and** direct POST `not_authorised`, for the wrong approver and for the\nbuyer's own requisition) · rejection needs a reason (`required` in the markup *and* the server's\n`validation_failed`, with the requisition still on screen) · double-click (`idempotency.test.ts`\nfires the identical form twice and counts versions and audit lines; a companion assertion shows a\n*different* key on the same version refuses, so the replay is doing the work) · currency on every\namount (a scan of every `<td class=\"amount\">` on every page, with a presence counter so the scan\ncannot pass by finding nothing) · JPY renders no decimals and refuses a decimal rather than\nrounding it · no token in any URL, log line or page source (`session.test.ts` captures\n`process.stdout`/`stderr` over a full walkthrough with the log at `info` and greps the captured\noutput — with a presence assertion that the walkthrough really was logged) · `npm ci` installs no\nruntime dependency (the existing `package-shape` suite already fails on one) and no build step\nwas added.\n\n**Deviations**\n1. **The \"note\" is per line, not per requisition.** The issue's editor names a \"note\"; the\n   schema (D-023/#3) has no requisition-level note column and this PR adds no migration (and\n   would have collided with #5). The editor's free-text field is the line `description`, labelled\n   \"Note — what this line is for\". Written up as **G-021** with its trigger, not left silent.\n2. **A `D-` row was needed** — D-025, as the issue anticipated. Rationale above and in the row.\n3. **`parseAmountMinor`/`amountField` live in `src/web/amount.ts`, not in `src/domain/money.ts`.**\n   They are form-field parsing (the inverse of `formatMoney`), and the instruction for this split\n   was to keep changes inside `src/web/`. No rounding happens in them — a third EUR decimal or any\n   JPY decimal is refused, so D-003's single rounding function stays uncalled.\n4. **Adding a line without JavaScript** is \"the editor always renders one blank spare row\", not a\n   JS-only \"add line\" button. Cheapest thing that keeps the no-JS path whole.\n5. **`/` redirects a buyer to `/requisitions` and everybody else to `/approvals`** — the issue\n   says \"redirect by role\" without naming the tie-break for somebody holding both.\n\n## Docs\n- **D-025** (new) — the page session cookie, with the attribute-by-attribute rationale and five\n  rejected alternatives; **addendum to D-013** recording that its `sessionStorage` clause is\n  superseded and that everything else in the row is built as written.\n- **G-020** (new) — the residual: the cookie *is* the bearer token, so signing out clears only\n  this browser's copy. Trigger: G-013 being answered, or the first deployment outside the demo.\n- **G-021** (new) — the missing requisition-level note, with the trigger that reopens it.\n- `docs/08-security.md` — new **T11** (CSRF on the pages) with its stated residual; **T5** and\n  **T7** extended with the cookie, the CSP and the escaping table test.\n- `README.md` — a \"The pages\" section after the route table (deliberately *not* the quickstart\n  section, which #5 owns).\n- Nothing else was made wrong by this change.\n\n## Dependencies\nNone. `dependencies` stays empty and `devDependencies` stays at the three D-001 names; the\nexisting `package-shape` suite enforces both.\n\n## Audit contribution\nNo new audit shape: every state change a page makes goes through the same `src/app/` use cases,\ninside the same `withTransaction`, so the existing D-007 line (actor, action, from/to state, rule,\ntotal + currency, reason, request id) is written unchanged — this PR's contribution is that the\ndetail page now **renders** that history verbatim: actor name, action, state edge, rule code,\namount with its currency, timestamp and reason.\n\n## Manual steps\nOnly a person with a browser can confirm the parts a string assertion cannot:\n1. `REQUISIT_TOKEN_SECRET=<32+ bytes> npm start`, open `http://127.0.0.1:3000/`, sign in with a\n   minted token (`npm run mint-token`). Check DevTools → Application → Cookies:\n   `requisit_session` shows **HttpOnly ✓, SameSite Strict**, and `document.cookie` in the console\n   returns `\"\"`.\n2. Draft a requisition: pick a catalogue item and leave the note and price empty — they fill from\n   the catalogue row on save. Type in the quantity field and watch the total and the rule line\n   update without a page load; then **switch JavaScript off** and confirm \"Recalculate\" does the\n   same thing and that the detail and queue pages still read completely.\n3. Double-click **Submit** and then **Approve** hard, and confirm one state change and one history\n   line each (with JS off too — the hidden key is what does it, not the button guard).\n4. Reject with a reason and confirm the buyer sees it verbatim, that the offer is \"Copy to a new\n   draft\" and never \"Reopen\", and that the page is legible at phone width.\n5. Sign out and press Back: the page must not come from the cache (`Cache-Control: no-store`).\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+   "url": "https://github.com/FRZWLF/requisit/pull/9",
+   "number": 9,
+   "draft": false
+  },
+  {
+   "at": "2026-09-21T16:52:10Z",
+   "kind": "comment",
+   "who": "FRZWLF",
+   "text": "🔨 Implemented in draft PR #9 — https://github.com/FRZWLF/requisit/pull/9\n\nBoard green (typecheck · 434 tests · lint · anchors · framework render). 30 files, +3 177 / −3.\nNew rows: **D-025** (the page session cookie, amending D-013's `sessionStorage` clause, as this issue anticipated), **G-020** (the residual: the cookie is the bearer token), **G-021** (no requisition-level note — the editor's free text is the line description). `docs/08-security.md` gains **T11** (CSRF on the pages).",
+   "url": "https://github.com/FRZWLF/requisit/issues/4#issuecomment-5764217351"
+  },
+  {
+   "at": "2026-09-21T16:58:50Z",
+   "kind": "review",
+   "who": "FRZWLF",
+   "text": "## 🧪 Quality review\n\nBoard re-run in a clean worktree off `feat/issue-4`: `npm ci && npm run typecheck && npm test && npm run lint && check-anchors.mjs .` — **434 tests, 434 pass, 0 fail**, lint and typecheck clean, anchors `25 D · 21 G · 10 M rows, every reference resolves`. Every `D-`/`G-` reference the diff adds (D-003, D-004, D-005, D-006, D-008, D-009, D-010, D-012, D-013 + addendum, D-016, D-018, D-021, D-023, D-024, **D-025**, G-013, **G-020**, **G-021**, T5/T7/**T11**) has a row, and the D-013 addendum correctly records which clause is superseded rather than leaving the old row lying.\n\nTwo mutations of my own, neither on the PR's list of seven:\n\n1. `detailPage`'s `keyFor` made to return one fixed key for every action on a page (the code comment claims two buttons must not share a key) → **red**, 2 tests in `idempotency`. The comment is load-bearing and pinned.\n2. Not a mutation but a probe, because the security brief asks about cross-org through the pages: two organisations seeded into **one** database (the shipped test uses two), then org A's buyer against org B's requisition — detail `404` with the body byte-identical to an unknown id, B's item text absent from A's list, B's cost centre absent from A's editor, and a hand-crafted POST naming B's cost centre refused `404`, not `303`. **Cross-org holds on the page surface.**\n\nOn the rest of the security brief: the cookie carries `HttpOnly; SameSite=Strict; Path=/` with `Secure` added off localhost and a `COOKIE_SAFE` guard before it is ever set (`src/web/session.ts`); `sameSiteOk` runs in `handleWeb` **before** auth and before any handler, so it covers every `POST` page route including `/sign-in` and `/sign-out`; the CSP is `default-src 'none'` with `form-action 'self'` and `frame-ancestors 'none'`, and I found no inline `style=`, no inline `<script>` and no `onclick` anywhere in the views, so the policy is actually satisfiable; every `${…}` in `src/web/views/*` resolves to `esc(…)`, `amount(…)` or a fragment built from them (`sentenceFor`'s raw `detail` concatenation is escaped at its one call site in `refusalBlock`); no authority is decided in `src/web/` — the handlers render `detail.actions` and call the `src/app/requisitions.ts` use cases; the idempotency ledger is scoped by `org_id` **and** `actor_person_id`, so a replayed page cannot cross to another person; and G-020 states the sign-out residual honestly rather than claiming revocation. No token reaches a URL, a template or the one log line.\n\nNo 🔴.\n\n### 🟡 Nits\n\n1. **`test/web/authority.test.ts:83` proves less than its name.** `setUpWeb()` calls `makeApp()` → `makeDb()`, so `const other = setUpWeb()` is a **second in-memory database**; the \"requisition of another organisation\" is simply an id that does not exist in the first one, and the test would pass unchanged if a page handler used an unscoped repository. The property does hold (probe 2 above) — but D-004 is the project's load-bearing invariant and D-014 makes the leak suite mandatory, so the page surface deserves the one-database version of this test.\n2. **`src/web/views/detail.ts:90` — `<a href=\"…/edit\"><button type=\"button\">Edit</button></a>`.** Interactive content inside an `<a>` is invalid HTML5 (the anchor's content model forbids an interactive descendant), and AC 1 asks for valid HTML. Current browsers do navigate, so nothing is broken today; `<a class=\"button\">` styled like one would be both valid and one element lighter.\n3. **`src/web/session.ts:51-54` — a missing or attacker-supplied `Host` drops `Secure`.** `isLocal` returns `true` for `''`, and the `Host` header is client-controlled: an origin behind a proxy that receives `Host: localhost` hands back a session cookie without `Secure`. Only the sender is affected, so it is not a red, but D-025's \"unless the host is `localhost`/`127.0.0.1`\" would be more honestly implemented from configuration than from a request header. Related, same row: `MAX_AGE_SECONDS = 3600` (line 30) is fixed and unrelated to the token's own `exp`, so a longer-lived token is silently signed out at one hour.\n4. **`src/web/pages.ts:105` stores a whole rendered page in the D-010 ledger.** On the JSON side a stored body is a small document; here every refused form post writes a full HTML page (tens of KB, chrome and history included) into `idempotency_keys`, which has no pruning anywhere in the tree. Same shape as before, new order of magnitude — worth an `M-` measurement or a `G-` row with retention as its trigger, rather than silence.\n5. **`src/http/app.ts:283-290` answers a page request's bug with `application/problem+json`.** `dispatch`'s catch is path-blind, so a throw inside a page handler shows a browser a raw JSON problem document. A throw is a bug and not a D-016 refusal, so nothing is violated — but the HTML surface has no 500 page, and that is the one response a person would meet with no sentence at all.\n\nNothing further; no additional nits withheld.\n\nVERDICT: findings (0 red, 5 nits)\n",
+   "url": "https://github.com/FRZWLF/requisit/pull/9#issuecomment-5764303752",
+   "verdict": "VERDICT: findings (0 red, 5 nits)",
+   "pr": 9
+  },
+  {
+   "at": "2026-09-21T17:00:05Z",
+   "kind": "commit",
+   "who": "FRZWLF",
+   "text": "fix(web): the edit action is a styled link, not a button inside an anchor (review nit)",
+   "sha": "180f81c"
+  },
+  {
+   "at": "2026-09-21T17:00:11Z",
+   "kind": "merged",
+   "who": "",
+   "text": "PR #9 merged",
+   "pr": 9
+  },
+  {
+   "at": "2026-09-21T17:00:13Z",
+   "kind": "closed",
+   "who": "FRZWLF",
+   "text": "issue closed"
+  },
+  {
+   "at": "2026-09-21T17:00:55Z",
+   "kind": "trail",
+   "who": "FRZWLF",
+   "text": "## 📋 Pipeline (in-chat) — issue #4 → PR #9 → `7a7ad57`\n\n| stage | model | outcome | tokens |\n|---|---|---|---|\n| triage | haiku | blocked on #3 (first pass) · area:web · size:M · risk:medium · pipeline:build (second pass) | 69932 |\n| architect | — | not run (size:M) | — |\n| implement | opus | draft PR #9 — 3 177 lines, 434 tests, 7 mutations red; D-025 (cookie session) written because D-013's sessionStorage clause cannot serve no-JS pages | 213897 |\n| quality review (with the security brief) | opus | findings (0 red, 5 nits) — cookie flags, CSRF, CSP, esc() all verified | 115302 |\n| fix loop | — | none needed | — |\n| gate | orchestrator | one-liner nit fixed (anchor-wrapped button → styled link); four multi-file nits → follow-up #11; board green on branch and on `main` (typecheck · 434/434 · lint · anchors 25 D · 21 G · 10 M · render 19 files) | — |\n| **total** | | | **399131** |\n\n**Reviews found:** nothing red. The security questions in the brief (HttpOnly/SameSite cookie, Sec-Fetch-Site guard, CSP, one esc() on every value, no authority in the pages, cross-org 404) all held. Nits: a cross-org test that used two databases, invalid HTML, the Secure flag decided from Host, HTML pages in the idempotency ledger, problem+json on a page throw.\n\n**Decisions:** D-025 cookie session (implementer's D-row, as the issue anticipated); G-020 sign-out semantics; G-021 no requisition-level note. PR assigned to FRZWLF for the after-the-fact review.\n\n**Manual steps left for FRZWLF:** the browser walkthrough in the PR body (cookie flags in DevTools, JS-off flow, double-click submit/approve, back button after sign-out).\n\n**Follow-ups:** #11.\n",
+   "url": "https://github.com/FRZWLF/requisit/issues/4#issuecomment-5764332581"
+  }
+ ]
+}
