@@ -1,0 +1,37 @@
+{
+  "project": "Ledger",
+  "repo": "your-org/ledger",
+  "owner": "your-github-login",
+  "human": "your-github-login",
+  "runtimes": ["claude"],
+  "labels": { "build": "pipeline:build", "triage": "pipeline:triage" },
+  "areas": [
+    { "label": "area:api", "desc": "the service: domain, storage, HTTP API" },
+    { "label": "area:web", "desc": "the web UI" },
+    { "label": "area:infra", "desc": "build, CI, packaging, GitHub setup" },
+    { "label": "area:docs", "desc": "documentation only" }
+  ],
+  "risk_high": "authentication and authorisation, anything that crosses a tenant, anything that moves money, secrets, CI/CD",
+  "verify": {
+    "board": "npm ci && npm run typecheck && npm test && npm run lint && node ../rumble-framework/scripts/check-anchors.mjs . && node ../rumble-framework/render.mjs . --check",
+    "extra": "TypeScript on Node 24, one package. Tests are `node --test` and run offline against an in-memory database."
+  },
+  "docs": {
+    "decisions": "docs/02-decisions.md",
+    "gaps": "docs/14-gap-analysis.md",
+    "measurements": "docs/16-measurements.md",
+    "research": "docs/15-research-log.md",
+    "standards": "docs/engineering-standards.md",
+    "threat_model": "docs/08-security.md"
+  },
+  "standards_project_sections": "docs/engineering-standards.project.md",
+  "implementers": [
+    { "name": "ledger-dev",
+      "description": "Implements Ledger work — the service, the UI, infra and docs. Follows the issue spec and the engineering standards; verifies before opening a PR.",
+      "areas": ["area:api", "area:web", "area:infra", "area:docs"],
+      "rules": "- Money is never a float: integer minor units with an explicit currency.\n- The tenant is the boundary: no query crosses one without saying so in its name." }
+  ],
+  "mandatory_suites": [],
+  "limits": { "parallel_builders": 3, "fix_rounds": 2, "split_lines": 3000, "disk_floor_gb": 40 },
+  "project_notes": { "fixtures": "none — the service runs in-process for tests", "offline_tests": "no external service in tests" }
+}

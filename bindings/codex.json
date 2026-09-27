@@ -23,7 +23,7 @@
     "review":      { "tier": "strong",   "effort": "high" },
     "fix_red":     { "tier": "strong",   "effort": "high" },
     "fix_nit":     { "tier": "standard", "effort": "medium" },
-    "frontier_on": "never in a delegated stage — Astra is reserved for the rumble session and chosen by Rico there; no delegated stage runs above `high`"
+    "frontier_on": "never in a delegated stage — the frontier tier is reserved for the rumble session, where the human chooses it; no delegated stage runs above `high`"
   },
   "sandbox": { "read": "read-only", "web": "read-only", "write": "workspace-write" },
   "verdict_words": { "red": "RED", "nit": "YELLOW" }

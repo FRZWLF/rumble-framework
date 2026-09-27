@@ -1,0 +1,57 @@
+{
+  "project": "Atlas",
+  "repo": "your-org/atlas",
+  "owner": "your-github-login",
+  "human": "your-github-login",
+  "runtimes": ["claude", "codex"],
+  "labels": { "build": "pipeline:build", "triage": "pipeline:triage" },
+  "agent_names": { "security": "security-reviewer" },
+  "gate": { "merge": "human" },
+  "areas": [
+    { "label": "area:core", "desc": "the Rust core: domain, policy, adapters" },
+    { "label": "area:web", "desc": "the web dashboard" },
+    { "label": "area:app", "desc": "the mobile companion apps" },
+    { "label": "area:infra", "desc": "build, CI, packaging, GitHub setup" },
+    { "label": "area:docs", "desc": "documentation only" }
+  ],
+  "risk_high": "anything that can act on the outside world, the policy layer, authentication, secrets, CI/CD",
+  "verify": {
+    "board": "cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test && cargo build --release",
+    "extra": "web: `cd web && npm ci && npm run lint && npm run build && npm test`; apps per `apps/*/README.md`"
+  },
+  "docs": {
+    "decisions": "docs/02-decisions.md",
+    "gaps": "docs/14-gap-analysis.md",
+    "measurements": "docs/16-measurements.md",
+    "research": "docs/15-research-log.md",
+    "standards": ".claude/standards/engineering-standards.md",
+    "threat_model": "docs/08-threat-model.md"
+  },
+  "standards_project_sections": "docs/engineering-standards.project.md",
+  "implementers": [
+    { "name": "core-dev",
+      "description": "Implements Rust work in the Atlas core — domain, policy layer, adapters, infra, docs.",
+      "areas": ["area:core", "area:infra", "area:docs"],
+      "rules": "- Async: tokio; never hold a `std::sync` lock across `.await`; bounded channels.\n- Errors: typed where callers branch, `anyhow` only at the edges.\n- Nothing acts on the outside world without going through the policy layer." },
+    { "name": "web-dev",
+      "description": "Implements the Atlas web dashboard. Flow and states first, visual design only when the issue says so.",
+      "areas": ["area:web"],
+      "rules": "- No new runtime dependency without a justification line in the PR.\n- Every state the UI can show has a test that renders it." },
+    { "name": "app-dev",
+      "description": "Implements the Atlas companion apps — pairing, push, handoff.",
+      "areas": ["area:app"],
+      "rules": "- Device keys never leave the secure hardware store.\n- Unit tests on the host; device runs are manual steps in the PR body." }
+  ],
+  "mandatory_suites": [
+    { "when_paths": ["core/src/policy/", "core/src/intent/"],
+      "run": "cargo test --test eval critical -- --nocapture",
+      "red_when": "a new misaction in the critical corpus, or a fixture left unrecorded",
+      "honest_line": "0 new critical misactions, pinned set unchanged",
+      "rule": "D-042" }
+  ],
+  "limits": { "parallel_builders": 3, "fix_rounds": 2, "split_lines": 3000, "disk_floor_gb": 80 },
+  "project_notes": {
+    "fixtures": "the dev fixture in Docker on port 8123 (`infra/dev/`); never bind a second instance",
+    "offline_tests": "CI has no fixture — tests use recorded responses"
+  }
+}

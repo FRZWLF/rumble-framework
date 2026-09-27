@@ -63,7 +63,7 @@ let events = [], i = 0, timer = null;
 
 if (!src) {
   rail.innerHTML = `<div class="empty"><h2>No replay loaded</h2><p>This page animates the <em>real</em> trail of one issue. Export one first:</p>
-  <pre>node scripts/replay-from-gh.mjs FRZWLF/requisit 12 > site/replays/issue-12.json
+  <pre>node scripts/replay-from-gh.mjs owner/repo 12 > site/replays/issue-12.json
 open "site/replay.html?data=replays/issue-12.json"</pre>
   <p>Every event is a GitHub object with its timestamp and author; nothing here is written by hand. Keys: space / → next, ← back, <b>a</b> autoplay, <b>t</b> theme.</p></div>`;
 } else fetch(src).then(r => r.json()).then(d => {

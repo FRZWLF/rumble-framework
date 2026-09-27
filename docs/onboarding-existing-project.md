@@ -26,13 +26,13 @@ smallest real change — the pipeline's first run should be boring.
 
 ## 3 · Steps
 
-1. `framework.json` at the root — `examples/framework.lumos.json` is a full one; the
-   `requisit` example repo is the minimal one. Name the implementers after your components,
-   not your people.
+1. `framework.json` at the root — `examples/framework.full.json` is a full one,
+   `examples/framework.minimal.json` the small one. Name the implementers after your
+   components, not your people.
 2. The two markers in `CLAUDE.md` / `AGENTS.md` (create the file if none; keep everything
    else in it as it is).
 3. `node ../rumble-framework/render.mjs .` · commit the generated files.
-4. Labels (`infra/github/labels.txt` + `setup.sh` in the requisit example).
+4. Labels: `scripts/setup-labels.sh <owner/repo>`, with your `area:*` labels added to a copy of `scripts/labels.txt`. Copy `templates/github/` into `.github/`.
 5. The reading rumble (§2).
 
 ## 4 · Several people

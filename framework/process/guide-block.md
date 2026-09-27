@@ -36,8 +36,8 @@ to {{human}} for review after the fact via the 📋 trail.{{/if}}
   later PRs add addenda; issues reserve numbers so parallel work never collides.
 - Open questions → `G-xxx` in `{{docs.gaps}}` with the trigger that reopens them; closed
   rows are struck through with the closing `D-`reference.
-- Any number worth keeping → `M-xxx` in `{{docs.measurements}}`; unmeasured reads "steht
-  aus", never a target dressed as a result. The pipeline's own cost is a measurement too.
+- Any number worth keeping → `M-xxx` in `{{docs.measurements}}`; unmeasured reads "pending",
+  never a target dressed as a result. The pipeline's own cost is a measurement too.
 - Research that changed a decision → `{{docs.research}}` with sources.
 - A task that changes what a doc describes updates that doc in the same branch. A reference
   without an anchor (a row, a test, a lever that does not exist) is a red finding.
