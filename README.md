@@ -171,3 +171,7 @@ Extracted in September 2026 from a solo project after two arcs and sixteen PRs t
 hand-written version of the same process, then rendered into a second project and used to
 build [`FRZWLF/requisit`](https://github.com/FRZWLF/requisit) from scratch. The measurement
 that started it: knowing, per stage, where the tokens went.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
